@@ -49,9 +49,6 @@ ensure_oplist_shortcut() {
     if ! grep -q "$PREFIX/bin" ~/.bashrc 2>/dev/null; then
       echo "export PATH=\$PATH:$PREFIX/bin" >> ~/.bashrc
     fi
-    if ! grep -q "$PREFIX/bin" ~/.zshrc 2>/dev/null; then
-      echo "export PATH=\$PATH:$PREFIX/bin" >> ~/.zshrc
-    fi
     echo -e "${INFO} 已将 $PREFIX/bin 添加到 PATH。请重启终端确保永久生效。"
   fi
   
@@ -61,7 +58,7 @@ ensure_oplist_shortcut() {
       chmod +x "$OPLIST_PATH"
       echo -e "${SUCCESS} 已将脚本安装为全局命令：${YELLOW}oplist${NC}"
       echo -e "${INFO} 你现在可以随时输入 ${YELLOW}oplist${NC} 启动管理菜单！"
-      sleep 2
+      sleep 3
     fi
   fi
 }
@@ -77,7 +74,7 @@ get_local_version() {
 }
 
 get_latest_version() {
-  if [ -f "$VERSION_CACHE" ] && [ "$(find "$VERSION_CACHE" -mmin -15)" ]; then
+  if [ -f "$VERSION_CACHE" ] && [ "$(find "$VERSION_CACHE" -mmin -20)" ]; then
     head -n1 "$VERSION_CACHE"
   else
     echo "检测更新中..."
@@ -85,11 +82,11 @@ get_latest_version() {
 }
 
 check_version_bg() {
-  if { [ ! -f "$VERSION_CACHE" ] || [ ! "$(find "$VERSION_CACHE" -mmin -15)" ]; } && \
+  if { [ ! -f "$VERSION_CACHE" ] || [ ! "$(find "$VERSION_CACHE" -mmin -20)" ]; } && \
      [ ! -f "$VERSION_CHECKING" ]; then
     get_github_token
     touch "$VERSION_CHECKING"
-    (curl -s -H "Authorization: token $GITHUB_TOKEN" \
+    (curl -s -m 10 -H "Authorization: token $GITHUB_TOKEN" \
       "https://api.github.com/repos/OpenListTeam/OpenList/releases/latest" | \
       sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n1 > "$VERSION_CACHE"
     rm -f "$VERSION_CHECKING") &
@@ -117,16 +114,16 @@ get_aria2_secret() {
 }
 
 divider() {
-  echo -e "${YELLOW}------------------------------------------------------------${NC}"
+  echo -e "${YELLOW}┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄${NC}"
 }
 
 ensure_aria2() {
   if ! command -v aria2c >/dev/null 2>&1; then
-    echo -e "${WARN} 未检测到 aria2c，正在尝试安装..."
+    echo -e "${WARN} 未检测到 aria2，正在尝试安装..."
     if command -v pkg >/dev/null 2>&1; then
       pkg update && pkg install -y aria2
     else
-      echo -e "${ERROR} 无法自动安装 aria2c，请手动安装后重试。"
+      echo -e "${ERROR} 无法自动安装 aria2，请手动安装后重试。"
       exit 1
     fi
   fi
@@ -225,14 +222,14 @@ start_all() {
     PIDS=$(pgrep -f "$ARIA2_CMD --enable-rpc")
     echo -e "${WARN} aria2 已运行，PID：$PIDS"
   else
-    echo -e "${INFO} 启动 aria2c ..."
+    echo -e "${INFO} 启动 aria2 ..."
     nohup $ARIA2_CMD --enable-rpc --rpc-listen-all=true --rpc-secret="$ARIA2_SECRET" > "$ARIA2_LOG" 2>&1 &
     sleep 2
     ARIA2_PID=$(pgrep -f "$ARIA2_CMD --enable-rpc" | head -n 1)
     if [ -n "$ARIA2_PID" ] && ps -p "$ARIA2_PID" >/dev/null 2>&1; then
       echo -e "${SUCCESS} aria2 已启动 (PID: $ARIA2_PID)。"
       echo -e "${INFO} 日志文件位置: ${YELLOW}$ARIA2_LOG${NC}"
-      echo -e "${INFO} rpc 密钥: ${YELLOW}$ARIA2_SECRET${NC}"
+      echo -e "${INFO} RPC 密钥: ${YELLOW}$ARIA2_SECRET${NC}"
     else
       echo -e "${ERROR} aria2 启动失败。"
       return 1
@@ -409,7 +406,7 @@ update_script() {
 show_menu() {
   clear
   divider
-  echo -e "${GREEN}       OpenList 管理菜单${NC}"
+  echo -e "${GREEN}         🌟 OpenList 管理菜单 🌟${NC}"
   divider
 
   init_cache_dir
