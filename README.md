@@ -1,12 +1,13 @@
 # Termux 下的 OpenList
 
-这是一个在 Android Termux 环境中方便安装、更新和管理 [OpenList](https://github.com/OpenListTeam/OpenList) 的脚本。项目集成了 **aria2** 的安装和管理功能，以提升下载效率。
+这是一个在 Android Termux 环境中方便安装、更新和管理 [OpenList](https://github.com/OpenListTeam/OpenList) 的脚本。
 
 ## 功能
-- 在 Termux 中轻松安装和更新 OpenList。
-- 集成 aria2 配置，支持高效下载。
-- 在 Termux 本地安全存储 GitHub token 和 aria2 RPC secret。
+- 在 Termux 中一键安装和更新 OpenList。
+- 集成 aria2 ，高效下载。
 - 支持快捷命令 `oplist` 快速调出管理菜单。
+- 支持openlist新版本检测 （非实时）。
+- 支持脚本自更新
 
 ## 前置要求
 1. **安装 curl 和 wget 工具**：
@@ -16,17 +17,17 @@
      ```
 
 2. **GitHub 个人访问令牌（Token）**：
-   - 用于避免未登录账户频繁调用 GitHub API 导致的限制。
+   - 用于突破未登录账户频繁调用 GitHub API 导致的速率限制。
    - **如何获取 GitHub token**：
      1. 访问 [GitHub 设置 > 开发者设置 > 个人访问令牌 > 经典令牌](https://github.com/settings/tokens)。
      2. 点击 **生成新令牌（经典）**。
      3. 选择权限：如需访问私有仓库请选择 `repo`，公开仓库可不选。
      4. 生成并复制令牌。
-     - **注意**：首次输入后，token 会安全存储在 Termux 本地，无需重复输入。
+     - **注意**：token只显示一次，请及时保存。首次输入后，token 会安全存储在 Termux 本地，无需重复输入。
 
 3. **aria2 RPC 密钥**：
    - 自行设置一个由字母、数字和符号组成的易记密钥，用于 aria2 的 RPC 认证。
-   - 与 GitHub token 相同，密钥会安全存储在 Termux 本地。
+   - 与 GitHub token 使用了相同的安全策略，密钥会存储在 Termux 本地。
 
 ## 安装与使用
 1. 打开 Termux，在根目录运行以下命令：
