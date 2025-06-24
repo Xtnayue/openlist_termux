@@ -5,7 +5,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[1;36m'
 NC='\033[0m'
-INFO="${BLUE}[INFO]${NC}"
+INFO="${BLUE}✉️${NC} ${BLUE}"
 ERROR="${RED}❌ [ERROR]${NC}"
 SUCCESS="${GREEN}✅ [OK]${NC}"
 WARN="${YELLOW}⚠️ [WARN]${NC}"
@@ -228,7 +228,6 @@ start_all() {
     ARIA2_PID=$(pgrep -f "$ARIA2_CMD --enable-rpc" | head -n 1)
     if [ -n "$ARIA2_PID" ] && ps -p "$ARIA2_PID" >/dev/null 2>&1; then
       echo -e "${SUCCESS} aria2 已启动 (PID: $ARIA2_PID)。"
-      echo -e "${INFO} 日志文件位置: ${YELLOW}$ARIA2_LOG${NC}"
       echo -e "${INFO} RPC 密钥: ${YELLOW}$ARIA2_SECRET${NC}"
     else
       echo -e "${ERROR} aria2 启动失败。"
@@ -270,14 +269,13 @@ start_all() {
         echo -e "    密码：  ${YELLOW}$PASSWORD${NC}"
         echo -e "${INFO} 请在系统浏览器中访问：${YELLOW}http://localhost:5244${NC}"
       else
-        echo -e "${WARN} 未在日志中找到初始密码，可能不是首次启动或请使用您设置的密码。"
+        echo -e "${INFO} 未在日志中找到初始密码，可能不是首次启动或请使用您设置的密码。"
         echo -e "${INFO} 若您已设置过账户密码，请系统浏览器直接访问：${YELLOW}http://localhost:5244${NC}"
       fi
     else
       echo -e "${ERROR} 未生成 openlist.log 日志文件。"
       echo -e "${INFO} 系统浏览器访问：${YELLOW}http://localhost:5244${NC}"
     fi
-    echo -e "${INFO} 日志文件位于 ${YELLOW}$OPENLIST_LOG${NC}"
     divider
   fi
   return 0
