@@ -269,14 +269,14 @@ start_all() {
         echo -e "${SUCCESS} 检测到 OpenList 初始账户信息："
         echo -e "    用户名：${YELLOW}admin${NC}"
         echo -e "    密码：  ${YELLOW}$PASSWORD${NC}"
-        echo -e "${INFO} 请在系统浏览器中访问：${YELLOW}http://localhost:5244${NC}"
+        echo -e "${INFO} 请在系统浏览器访问：${YELLOW}http://localhost:5244${NC}"
       else
-        echo -e "${INFO} 未在日志中找到初始密码，可能不是首次启动或请使用您设置的密码。"
-        echo -e "${INFO} 若您已设置过账户密码，请系统浏览器直接访问：${YELLOW}http://localhost:5244${NC}"
+        echo -e "${INFO} 非首次启动未在日志中找到初始密码，请使用您设置的密码。"
+        echo -e "${INFO} 请在系统浏览器访问：${YELLOW}http://localhost:5244${NC}"
       fi
     else
       echo -e "${ERROR} 未生成 openlist.log 日志文件。"
-      echo -e "${INFO} 系统浏览器访问：${YELLOW}http://localhost:5244${NC}"
+      echo -e "${INFO} 请在系统浏览器访问：${YELLOW}http://localhost:5244${NC}"
     fi
     divider
   fi
