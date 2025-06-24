@@ -3,12 +3,14 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+MAGENTA='\033[1;35m'
 BLUE='\033[1;36m'
 NC='\033[0m'
-INFO="${BLUE}✉️${NC} ${BLUE}"
-ERROR="${RED}❌ [ERROR]${NC}"
-SUCCESS="${GREEN}✅ [OK]${NC}"
-WARN="${YELLOW}⚠️ [WARN]${NC}"
+
+INFO="${BLUE}[INFO]${NC}"
+ERROR="${RED}[ERROR]${NC}"
+SUCCESS="${GREEN}[OK]${NC}"
+WARN="${YELLOW}[WARN]${NC}"
 
 init_paths() {
   REAL_PATH=$(readlink -f "$0")
@@ -114,7 +116,7 @@ get_aria2_secret() {
 }
 
 divider() {
-  echo -e "${YELLOW}┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄${NC}"
+    echo -e "${YELLOW}--------------------------------------${NC}"
 }
 
 ensure_aria2() {
@@ -404,7 +406,7 @@ update_script() {
 show_menu() {
   clear
   divider
-  echo -e "${GREEN}         🌟 OpenList 管理菜单 🌟${NC}"
+  echo -e "${MAGENTA}         🌟 OpenList 管理菜单 🌟${NC}"
   divider
 
   init_cache_dir
@@ -444,7 +446,7 @@ ensure_oplist_shortcut
 while true; do
   show_menu
   check_version_bg
-  read -ep "请输入选项 (0-7): " choice
+  read -ep "${MAGENTA}请输入选项 (0-7): ${NC}" choice
   case $choice in
     1) install_openlist; echo -e "按回车键返回菜单..."; read -r ;;
     2) update_openlist; echo -e "按回车键返回菜单..."; read -r ;;
