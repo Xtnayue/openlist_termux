@@ -446,7 +446,7 @@ ensure_oplist_shortcut
 while true; do
   show_menu
   check_version_bg
-  read -r -p "${MAGENTA}请输入选项 (0-7): ${NC}" choice
+  read -ep "请输入选项 (0-7): " choice
   case $choice in
     1) install_openlist; echo -e "按回车键返回菜单..."; read -r ;;
     2) update_openlist; echo -e "按回车键返回菜单..."; read -r ;;
