@@ -6,9 +6,9 @@ YELLOW='\033[1;33m'
 BLUE='\033[1;36m'
 NC='\033[0m'
 INFO="${BLUE}[INFO]${NC}"
-ERROR="${RED}[ERROR]${NC}"
-SUCCESS="${GREEN}[OK]${NC}"
-WARN="${YELLOW}[WARN]${NC}"
+ERROR="${RED}❌ [ERROR]${NC}"
+SUCCESS="${GREEN}✅ [OK]${NC}"
+WARN="${YELLOW}⚠️ [WARN]${NC}"
 
 init_paths() {
   REAL_PATH=$(readlink -f "$0")
