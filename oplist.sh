@@ -16,7 +16,6 @@ init_paths() {
   REAL_PATH=$(readlink -f "$0")
   SCRIPT_NAME=$(basename "$REAL_PATH")
   SCRIPT_DIR=$(dirname "$REAL_PATH")
-
   if [ "$SCRIPT_NAME" = "oplist" ] && [ "$SCRIPT_DIR" = "$PREFIX/bin" ]; then
     ORIGINAL_SCRIPT=$(find "$HOME" -name "oplist.sh" -type f 2>/dev/null | head -n 1)
     if [ -n "$ORIGINAL_SCRIPT" ]; then
@@ -27,9 +26,7 @@ init_paths() {
       exit 1
     fi
   fi
-
   cd "$SCRIPT_DIR" || exit 1
-
   FILE_NAME="openlist-android-arm64.tar.gz"
   DEST_DIR="$SCRIPT_DIR/Openlist"
   OPENLIST_LOGDIR="$DEST_DIR/data/log"
@@ -53,7 +50,6 @@ ensure_oplist_shortcut() {
     fi
     echo -e "${INFO} 已将 $PREFIX/bin 添加到 PATH。请重启终端确保永久生效。"
   fi
-  
   if [ ! -f "$OPLIST_PATH" ] || [ "$REAL_PATH" != "$(readlink -f "$OPLIST_PATH")" ]; then
     if [ "$REAL_PATH" != "$OPLIST_PATH" ]; then
       cp "$REAL_PATH" "$OPLIST_PATH"
@@ -212,6 +208,34 @@ check_aria2_process() {
   pgrep -f "$ARIA2_CMD --enable-rpc" >/dev/null 2>&1
 }
 
+enable_autostart_both() {
+  mkdir -p "$HOME/.termux/boot"
+  local boot_file="$HOME/.termux/boot/openlist_and_aria2_autostart.sh"
+  cat > "$boot_file" <<EOF
+#!/data/data/com.termux/files/usr/bin/bash
+termux-wake-lock
+ARIA2_SECRET="\$(cat "$ARIA2_SECRET_FILE" 2>/dev/null)"
+ARIA2_LOG="$ARIA2_LOG"
+ARIA2_CMD="$ARIA2_CMD"
+\$ARIA2_CMD --enable-rpc --rpc-listen-all=true --rpc-secret="\$ARIA2_SECRET" > "\$ARIA2_LOG" 2>&1 &
+
+OPENLIST_DIR="$DEST_DIR"
+OPENLIST_LOG="$OPENLIST_LOG"
+cd "\$OPENLIST_DIR" || exit 1
+"\$OPENLIST_DIR/openlist" server > "\$OPENLIST_LOG" 2>&1 &
+EOF
+  chmod +x "$boot_file"
+  echo -e "${SUCCESS} Openlist 和aria2已成功设置开机自启"
+}
+
+disable_autostart_both() {
+  local boot_file="$HOME/.termux/boot/openlist_and_aria2_autostart.sh"
+  if [ -f "$boot_file" ]; then
+    rm -f "$boot_file"
+    echo -e "${INFO} 已禁用Openlist和aria2开机自启"
+  fi
+}
+
 start_all() {
   ensure_aria2
   if [ ! -d "$DEST_DIR" ]; then
@@ -225,7 +249,7 @@ start_all() {
     echo -e "${WARN} aria2 已运行，PID：$PIDS"
   else
     echo -e "${INFO} 启动 aria2 ..."
-    nohup $ARIA2_CMD --enable-rpc --rpc-listen-all=true --rpc-secret="$ARIA2_SECRET" > "$ARIA2_LOG" 2>&1 &
+    $ARIA2_CMD --enable-rpc --rpc-listen-all=true --rpc-secret="$ARIA2_SECRET" > "$ARIA2_LOG" 2>&1 &
     sleep 2
     ARIA2_PID=$(pgrep -f "$ARIA2_CMD --enable-rpc" | head -n 1)
     if [ -n "$ARIA2_PID" ] && ps -p "$ARIA2_PID" >/dev/null 2>&1; then
@@ -236,7 +260,6 @@ start_all() {
       return 1
     fi
   fi
-
   mkdir -p "$OPENLIST_LOGDIR"
   OPENLIST_BIN=$(readlink -f "$DEST_DIR/openlist")
   if check_openlist_process; then
@@ -280,6 +303,20 @@ start_all() {
     fi
     divider
   fi
+
+  if command -v termux-wake-lock >/dev/null 2>&1; then
+    termux-wake-lock
+  fi
+
+  echo -ne "${INFO} 是否打开Openlist和aria2开机自启？(y/n): "
+  read -r enable_boot
+  if [[ "$enable_boot" =~ ^[Yy]$ ]]; then
+    enable_autostart_both
+  else
+    disable_autostart_both
+    echo -e "${INFO} 未开启开机自启。"
+  fi
+  divider
   return 0
 }
 
@@ -299,7 +336,6 @@ stop_all() {
   else
     echo -e "${WARN} OpenList server 未运行。"
   fi
-
   if check_aria2_process; then
     PIDS=$(pgrep -f "$ARIA2_CMD --enable-rpc")
     echo -e "${INFO} 检测到 aria2 正在运行，PID：$PIDS"
@@ -314,6 +350,11 @@ stop_all() {
   else
     echo -e "${WARN} aria2 未运行。"
   fi
+
+  if command -v termux-wake-unlock >/dev/null 2>&1; then
+    termux-wake-unlock
+  fi
+
   return 0
 }
 
@@ -370,10 +411,8 @@ update_script() {
       return 1
     fi
   fi
-
   TMP_FILE="$SCRIPT_DIR/oplist.sh.new"
   echo -e "${INFO} 正在下载最新管理脚本..."
-  
   if command -v wget >/dev/null 2>&1; then
     wget -q --no-check-certificate "https://raw.githubusercontent.com/giturass/openlist_termux/main/oplist.sh" -O "$TMP_FILE"
   else
@@ -382,7 +421,6 @@ update_script() {
     read -r
     return 1
   fi
-  
   if [ -s "$TMP_FILE" ]; then
     chmod +x "$TMP_FILE"
     mv "$TMP_FILE" "$REAL_PATH"
@@ -398,7 +436,6 @@ update_script() {
     echo -e "${ERROR} 下载最新管理脚本失败，请检查网络或稍后再试。"
     rm -f "$TMP_FILE"
   fi
-  
   echo -e "按回车键返回菜单..."
   read -r
 }
@@ -408,11 +445,9 @@ show_menu() {
   divider
   echo -e "${MAGENTA}         🌟 OpenList 管理菜单 🌟${NC}"
   divider
-
   init_cache_dir
   local_ver=$(get_local_version)
   latest_ver=$(get_latest_version)
-
   if [ "$latest_ver" = "检测更新中..." ]; then
     ver_status="${YELLOW}检测更新中...${NC}"
   elif [ -z "$local_ver" ]; then
@@ -424,7 +459,6 @@ show_menu() {
   else
     ver_status="${YELLOW}有新版本 $latest_ver (当前 $local_ver)${NC}"
   fi
-
   openlist_status_line
   aria2_status_line
   echo -e "${INFO} OpenList 版本：$ver_status"
