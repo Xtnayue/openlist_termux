@@ -350,7 +350,6 @@ stop_all() {
   else
     echo -e "${WARN} aria2 未运行。"
   fi
-
   return 0
 }
 
