@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/data/data/com.termux/files/usr/bin/sh
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -212,7 +212,7 @@ enable_autostart_both() {
   mkdir -p "$HOME/.termux/boot"
   local boot_file="$HOME/.termux/boot/openlist_and_aria2_autostart.sh"
   cat > "$boot_file" <<EOF
-#!/data/data/com.termux/files/usr/bin/bash
+#!/data/data/com.termux/files/usr/bin/sh
 termux-wake-lock
 ARIA2_SECRET="\$(cat "$ARIA2_SECRET_FILE" 2>/dev/null)"
 ARIA2_LOG="$ARIA2_LOG"
@@ -349,10 +349,6 @@ stop_all() {
     echo -e "${SUCCESS} aria2 已成功终止。"
   else
     echo -e "${WARN} aria2 未运行。"
-  fi
-
-  if command -v termux-wake-unlock >/dev/null 2>&1; then
-    termux-wake-unlock
   fi
 
   return 0
