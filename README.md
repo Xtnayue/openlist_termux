@@ -7,6 +7,7 @@
 - 集成 aria2 ，高效下载。
 - 支持快捷命令 `oplist` 快速调出管理菜单。
 - 支持openlist新版本检测 （非实时）。
+- 支持openlist&aria2开机自启
 - 支持脚本自更新
 
 ## 前置要求
@@ -28,6 +29,10 @@
 3. **aria2 RPC 密钥**：
    - 自行设置一个由字母、数字和符号组成的易记密钥，用于 aria2 的 RPC 认证。
    - 与 GitHub token 使用了相同的安全策略，密钥会存储在 Termux 本地。
+
+4. **Termux boot 插件**
+   下载地址：https://github.com/termux/termux-boot/releases/download/v0.8.1/termux-boot-app_v0.8.1+github.debug.apk
+用于openlist和aria2的开机启动。
 
 ## 安装与使用
 1. 打开 Termux，在根目录运行以下命令：
