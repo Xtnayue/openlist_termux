@@ -1,4 +1,4 @@
-#!/data/data/com.termux/files/usr/bin/sh
+#!/data/data/com.termux/files/usr/bin/bash
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -212,7 +212,7 @@ enable_autostart_both() {
   mkdir -p "$HOME/.termux/boot"
   local boot_file="$HOME/.termux/boot/openlist_and_aria2_autostart.sh"
   cat > "$boot_file" <<EOF
-#!/data/data/com.termux/files/usr/bin/sh
+#!/data/data/com.termux/files/usr/bin/bash
 termux-wake-lock
 ARIA2_SECRET="\$(cat "$ARIA2_SECRET_FILE" 2>/dev/null)"
 ARIA2_LOG="$ARIA2_LOG"
@@ -484,7 +484,13 @@ while true; do
     5) view_openlist_log ;;
     6) view_aria2_log ;;
     7) update_script ;;
-    0) echo -e "${INFO} 退出程序。"; exit 0 ;;
+    0)
+      if command -v termux-wake-unlock >/dev/null 2>&1; then
+        termux-wake-unlock
+      fi
+      echo -e "${INFO} 退出程序。"
+      exit 0
+      ;;
     *) echo -e "${ERROR} 无效选项，请输入 0-7。"; echo -e "按回车键返回菜单..."; read -r ;;
   esac
 done
