@@ -194,7 +194,7 @@ update_openlist() {
   chmod +x "$DEST_DIR/openlist"
   rm -f "$FILE_NAME"
   rm -f "$VERSION_CACHE"
-  echo -e "${SUCCESS} OpenList 更新完成！"
+  echo -e "${SUCCESS} 属於更新完成！"
   cd - >/dev/null
   return 0
 }
@@ -303,11 +303,9 @@ start_all() {
     fi
     divider
   fi
-
   if command -v termux-wake-lock >/dev/null 2>&1; then
     termux-wake-lock
   fi
-
   echo -ne "${INFO} 是否打开Openlist和aria2开机自启？(y/n): "
   read -r enable_boot
   if [[ "$enable_boot" =~ ^[Yy]$ ]]; then
@@ -380,7 +378,7 @@ view_openlist_log() {
   fi
   echo -e "${INFO} 显示OpenList日志文件：${YELLOW}$LOG_FILE${NC}"
   cat "$LOG_FILE"
-  echo -e "按回车键返回菜单..."
+  echo -e "${MAGENTA}按回车键返回菜单...${NC}"
   read -r
 }
 
@@ -392,7 +390,7 @@ view_aria2_log() {
   fi
   echo -e "${INFO} 显示aria2日志文件：${YELLOW}$LOG_FILE${NC}"
   cat "$LOG_FILE"
-  echo -e "按回车键返回菜单..."
+  echo -e "${MAGENTA}按回车键返回菜单...${NC}"
   read -r
 }
 
@@ -412,7 +410,7 @@ update_script() {
     wget -q --no-check-certificate "https://raw.githubusercontent.com/giturass/openlist_termux/main/oplist.sh" -O "$TMP_FILE"
   else
     echo -e "${ERROR} 未检测到 wget，请先安装 wget。"
-    echo -e "按回车键返回菜单..."
+    echo -e "${MAGENTA}按回车键返回菜单...${NC}"
     read -r
     return 1
   fi
@@ -431,7 +429,7 @@ update_script() {
     echo -e "${ERROR} 下载最新管理脚本失败，请检查网络或稍后再试。"
     rm -f "$TMP_FILE"
   fi
-  echo -e "按回车键返回菜单..."
+  echo -e "${MAGENTA}按回车键返回菜单...${NC}"
   read -r
 }
 
@@ -475,22 +473,20 @@ ensure_oplist_shortcut
 while true; do
   show_menu
   check_version_bg
-  read -ep "请输入选项 (0-7): " choice
+  echo -e "${MAGENTA}请输入选项 (0-7): ${NC}\c"
+  read -r choice
   case $choice in
-    1) install_openlist; echo -e "按回车键返回菜单..."; read -r ;;
-    2) update_openlist; echo -e "按回车键返回菜单..."; read -r ;;
-    3) start_all; echo -e "按回车键返回菜单..."; read -r ;;
-    4) stop_all; echo -e "按回车键返回菜单..."; read -r ;;
+    1) install_openlist; echo -e "${MAGENTA}按回车键返回菜单...${NC}"; read -r ;;
+    2) update_openlist; echo -e "${MAGENTA}按回车键返回菜单...${NC}"; read -r ;;
+    3) start_all; echo -e "${MAGENTA}按回车键返回菜单...${NC}"; read -r ;;
+    4) stop_all; echo -e "${MAGENTA}按回车键返回菜单...${NC}"; read -r ;;
     5) view_openlist_log ;;
     6) view_aria2_log ;;
     7) update_script ;;
     0)
-      if command -v termux-wake-unlock >/dev/null 2>&1; then
-        termux-wake-unlock
-      fi
       echo -e "${INFO} 退出程序。"
       exit 0
       ;;
-    *) echo -e "${ERROR} 无效选项，请输入 0-7。"; echo -e "按回车键返回菜单..."; read -r ;;
+    *) echo -e "${ERROR} 无效选项，请输入 0-7。"; echo -e "${MAGENTA}按回车键返回菜单...${NC}"; read -r ;;
   esac
 done
