@@ -1,6 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# Color definitions
 C_BOLD_BLUE="\033[1;34m"
 C_BOLD_GREEN="\033[1;32m"
 C_BOLD_YELLOW="\033[1;33m"
@@ -10,7 +9,6 @@ C_BOLD_MAGENTA="\033[1;35m"
 C_BOLD_WHITE="\033[1;37m"
 C_RESET="\033[0m"
 
-# Message prefixes
 INFO="${C_BOLD_BLUE}[INFO]${C_RESET}"
 ERROR="${C_BOLD_RED}[ERROR]${C_RESET}"
 SUCCESS="${C_BOLD_GREEN}[OK]${C_RESET}"
