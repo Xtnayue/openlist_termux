@@ -486,7 +486,7 @@ update_bt_tracker() {
     echo -e "${C_BOLD_BLUE}│ 更新 BT Tracker         │${C_RESET}"
     echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
     echo -e "${INFO} 正在更新 BT Tracker ..."
-    bash <(curl -fsSL -H "Authorization: token $GITHUB_TOKEN" git.io/tracker.sh) "$ARIA2_CONF"
+    bash <(curl -H "Authorization: token $GITHUB_TOKEN" https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/tracker.sh) "$ARIA2_CONF"
     if [ $? -eq 0 ]; then
         echo -e "${SUCCESS} BT Tracker 更新完成！"
     else
