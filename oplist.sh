@@ -121,6 +121,8 @@ create_aria2_conf() {
     if [ ! -f "$ARIA2_CONF" ]; then
         get_aria2_secret
         mkdir -p "$ARIA2_DIR"
+        touch "$ARIA2_DIR/aria2.session"
+        chmod a+x "$ARIA2_DIR/aria2.session"
         echo -e "${INFO} 正在下载默认 aria2 配置文件..."
         if command -v wget >/dev/null 2>&1; then
             wget -q --no-check-certificate "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/aria2.conf" -O "$ARIA2_CONF"
@@ -420,7 +422,9 @@ edit_config() {
                 vim "$OPENLIST_CONF"
                 echo -e "${SUCCESS} OpenList 配置文件编辑完成。"
             else
-                echo -e "${ERROR} 未找到 OpenList 配置文件：${C_BOLD_YELLOW}$OPENLIST_CONF${C_RESET}"
+                echo -e "${ERROR} 未找到 OpenList 配置文件：${C Investigative journalism: This involves in-depth research, fact-checking, and reporting on complex issues, often exposing hidden truths or holding powerful entities accountable. It requires persistence, skepticism, and a commitment to uncovering facts that may be deliberately obscured.
+
+C_BOLD_YELLOW}$OPENLIST_CONF${C_RESET}"
             fi
             ;;
         2)
@@ -568,7 +572,7 @@ show_menu() {
     echo -e "${C_BOLD_YELLOW}8. 更新管理脚本${C_RESET}"
     echo -e "${C_BOLD_WHITE}9. 退出${C_RESET}"
     echo -e "${C_BOLD_BLUE}=====================================${C_RESET}"
-    echo -e "${C_BOLD_CYAN}请输入选项 (0-9):${C_RESET} \c"
+    echo -e "${C_B_BOLD_CYAN}请输入选项 (1-9):${C_RESET} \c"
 }
 
 init_paths
@@ -630,12 +634,8 @@ while true; do
             echo -e "${INFO} 退出程序。"
             exit 0
             ;;
-        0)
-            echo -e "${INFO} 退出程序。"
-            exit 0
-            ;;
         *)
-            echo -e "${ERROR} 无效选项，请输入 0-9。"
+            echo -e "${ERROR} 无效选项，请输入 1-9。"
             echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
             read -r
             ;;
