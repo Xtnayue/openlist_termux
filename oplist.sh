@@ -115,17 +115,20 @@ get_aria2_secret() {
         chmod 600 "$ARIA2_SECRET_FILE"
     fi
     ARIA2_SECRET=$(cat "$ARIA2_SECRET_FILE")
+    echo -e "${INFO} aria2 RPC Token: ${C_BOLD_YELLOW}$ARIA2_SECRET${C_RESET}"
 }
 
-create_aria2_conf() {
-    if [ ! -f "$ARIA2_CONF" ]; then
-        get_aria2_secret
-        mkdir -p "$ARIA2_DIR"
-        touch "$ARIA2_DIR/aria2.session"
-        chmod a+x "$ARIA2_DIR/aria2.session"
-        echo -e "${INFO} 正在下载默认 aria2 配置文件及相关文件..."
-        if command -v wget >/dev/null 2>&1; then
-            # Download aria2.conf
+check_aria2_files() {
+    get_aria2_secret
+    mkdir -p "$ARIA2_DIR"
+    touch "$ARIA2_DIR/aria2.session"
+    chmod a+x "$ARIA2_DIR/aria2.session"
+    local missing_files=0
+    echo -e "${INFO} 检查 aria2 相关文件..."
+    if command -v wget >/dev/null 2>&1; then
+        # Check and download aria2.conf if missing
+        if [ ! -f "$ARIA2_CONF" ]; then
+            echo -e "${INFO} aria2 配置文件缺失，正在下载..."
             wget -q --no-check-certificate "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/aria2.conf" -O "$ARIA2_CONF"
             if [ -s "$ARIA2_CONF" ]; then
                 sed -i "s|^rpc-secret=.*|rpc-secret=$ARIA2_SECRET|" "$ARIA2_CONF"
@@ -134,40 +137,58 @@ create_aria2_conf() {
             else
                 echo -e "${ERROR} 下载 aria2 配置文件失败，请检查网络或稍后再试。"
                 rm -f "$ARIA2_CONF"
-                return 1
+                missing_files=1
             fi
-            # Download clean.sh
+        fi
+        # Check and download clean.sh if missing
+        if [ ! -f "$ARIA2_DIR/clean.sh" ]; then
+            echo -e "${INFO} clean.sh 文件缺失，正在下载..."
             wget -q --no-check-certificate "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/clean.sh" -O "$ARIA2_DIR/clean.sh"
             if [ -s "$ARIA2_DIR/clean.sh" ]; then
                 chmod +x "$ARIA2_DIR/clean.sh"
-                echo -e "${SUCCESS} 已下载 clean.sh 并赋予执行权限：${C_BOLD_YELLOW}$ARIA2_DIR/cleanapd.sh${C_RESET}"
+                echo -e "${SUCCESS} 已下载 clean.sh 并赋予执行权限：${C_BOLD_YELLOW}$ARIA2_DIR/clean.sh${C_RESET}"
             else
                 echo -e "${ERROR} 下载 clean.sh 失败，请检查网络或稍后再试。"
                 rm -f "$ARIA2_DIR/clean.sh"
-                return 1
+                missing_files=1
             fi
-            # Download dht.dat
+        fi
+        # Check and download dht.dat if missing
+        if [ ! -f "$ARIA2_DIR/dht.dat" ]; then
+            echo -e "${INFO} dht.dat 文件缺失，正在下载..."
             wget -q --no-check-certificate "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht.dat" -O "$ARIA2_DIR/dht.dat"
             if [ -s "$ARIA2_DIR/dht.dat" ]; then
                 echo -e "${SUCCESS} 已下载 dht.dat：${C_BOLD_YELLOW}$ARIA2_DIR/dht.dat${C_RESET}"
             else
                 echo -e "${ERROR} 下载 dht.dat 失败，请检查网络或稍后再试。"
                 rm -f "$ARIA2_DIR/dht.dat"
-                return 1
+                missing_files=1
             fi
-            # Download dht6.dat
+        fi
+        # Check and download dht6.dat if missing
+        if [ ! -f "$ARIA2_DIR/dht6.dat" ]; then
+            echo -e "${INFO} dht6.dat 文件缺失，正在下载..."
             wget -q --no-check-certificate "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht6.dat" -O "$ARIA2_DIR/dht6.dat"
             if [ -s "$ARIA2_DIR/dht6.dat" ]; then
                 echo -e "${SUCCESS} 已下载 dht6.dat：${C_BOLD_YELLOW}$ARIA2_DIR/dht6.dat${C_RESET}"
             else
                 echo -e "${ERROR} 下载 dht6.dat 失败，请检查网络或稍后再试。"
                 rm -f "$ARIA2_DIR/dht6.dat"
-                return 1
+                missing_files=1
             fi
-        else
-            echo -e "${ERROR} 未检测到 wget，请先安装 wget。"
-            return 1
         fi
+    else
+        echo -e "${ERROR} 未检测到 wget，请先安装 wget。"
+        return 1
+    fi
+    return $missing_files
+}
+
+create_aria2_conf() {
+    if [ ! -f "$ARIA2_CONF" ]; then
+        check_aria2_files
+    else
+        get_aria2_secret
     fi
 }
 
@@ -302,7 +323,11 @@ start_all() {
         echo -e "${ERROR} ${C_BOLD_YELLOW}$DEST_DIR${C_RESET} 文件夹不存在，请先安装 OpenList。"
         return 1
     fi
-    create_aria2_conf
+    check_aria2_files
+    if [ $? -ne 0 ]; then
+        echo -e "${ERROR} aria2 文件检查失败，无法启动 aria2。"
+        return 1
+    fi
     if check_aria2_process; then
         PIDS=$(pgrep -f "$ARIA2_CMD --conf-path=$ARIA2_CONF")
         echo -e "${WARN} aria2 已运行，PID：${C_BOLD_YELLOW}$PIDS${C_RESET}"
@@ -313,7 +338,7 @@ start_all() {
         ARIA2_PID=$(pgrep -f "$ARIA2_CMD --conf-path=$ARIA2_CONF" | head -n 1)
         if [ -n "$ARIA2_PID" ] && ps -p "$ARIA2_PID" >/dev/null 2>&1; then
             echo -e "${SUCCESS} aria2 已启动 (PID: ${C_BOLD_YELLOW}$ARIA2_PID${C_RESET})."
-            echo -e "${INFO} RPC 密钥已配置在 ${C_BOLD_YELLOW}$ARIA2_CONF${C_RESET}"
+            echo -e "${INFO} RPC 密钥：${C_BOLD_YELLOW}$ARIA2_SECRET${C_RESET}"
         else
             echo -e "${ERROR} aria2 启动失败，继续启动 OpenList..."
         fi
@@ -582,19 +607,19 @@ show_menu() {
     aria2_status_line
     echo -e "${INFO} OpenList 版本：$ver_status"
     echo -e "${C_BOLD_BLUE}=====================================${C_RESET}"
-    echo -e "${C_BOLD_GREEN}1. 安装 OpenList${C_RESET}"
-    echo -e "${C_BOLD_YELLOW}2. 更新 OpenList${C_RESET}"
-    echo -e "${C_BOLD_CYAN}3. 启动 OpenList 和 aria2${C_RESET}"
-    echo -e "${C_BOLD_RED}4. 停止 OpenList 和 aria2${C_RESET}"
-    echo -e "${C_BOLD_MAGENTA}5. 编辑 OpenList 配置文件${C_RESET}"
-    echo -e "${C_BOLD_MAGENTA}6. 编辑 aria2 配置文件${C_RESET}"
-    echo -e "${C_BOLD_MAGENTA}7. 查看 OpenList 启动日志${C_RESET}"
-    echo -e "${C_BOLD_MAGENTA}8. 查看 aria2 启动日志${C_RESET}"
-    echo -e "${C_BOLD_YELLOW}9. 更新 aria2 BT Tracker${C_RESET}"
-    echo -e "${C_BOLD_YELLOW}0. 更新管理脚本${C_RESET}"
-    echo -e "${C_BOLD_WHITE}e. 退出${C_RESET}"
+    echo -e "${C_BOLD_GREEN}a. 安装 OpenList${C_RESET}"
+    echo -e "${C_BOLD_YELLOW}b. 更新 OpenList${C_RESET}"
+    echo -e "${C_BOLD_CYAN}c. 启动 OpenList 和 aria2${C_RESET}"
+    echo -e "${C_BOLD_RED}d. 停止 OpenList 和 aria2${C_RESET}"
+    echo -e "${C_BOLD_MAGENTA}e. 编辑 OpenList 配置文件${C_RESET}"
+    echo -e "${C_BOLD_MAGENTA}f. 编辑 aria2 配置文件${C_RESET}"
+    echo -e "${C_BOLD_MAGENTA}g. 查看 OpenList 启动日志${C_RESET}"
+    echo -e "${C_BOLD_MAGENTA}h. 查看 aria2 启动日志${C_RESET}"
+    echo -e "${C_BOLD_YELLOW}i. 更新 aria2 BT Tracker${C_RESET}"
+    echo -e "${C_BOLD_YELLOW}j. 更新管理脚本${C_RESET}"
+    echo -e "${C_BOLD_WHITE}k. 退出${C_RESET}"
     echo -e "${C_BOLD_BLUE}=====================================${C_RESET}"
-    echo -e "${C_BOLD_CYAN}请输入选项 (0-9, e):${C_RESET} \c"
+    echo -e "${C_BOLD_CYAN}请输入选项 (a-k):${C_RESET} \c"
 }
 
 init_paths
@@ -605,13 +630,7 @@ while true; do
     check_version_bg
     read -r choice
     case $choice in
-        0)
-            echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
-            echo -e "${C_BOLD_BLUE}│ 更新管理脚本           │${C_RESET}"
-            echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
-            update_script
-            ;;
-        1)
+        a|A)
             echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
             echo -e "${C_BOLD_BLUE}│ 安装 OpenList           │${C_RESET}"
             echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
@@ -619,7 +638,7 @@ while true; do
             echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
             read -r
             ;;
-        2)
+        b|B)
             echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
             echo -e "${C_BOLD_BLUE}│ 更新 OpenList           │${C_RESET}"
             echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
@@ -627,7 +646,7 @@ while true; do
             echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
             read -r
             ;;
-        3)
+        c|C)
             echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
             echo -e "${C_BOLD_BLUE}│ 启动 OpenList 和 aria2 │${C_RESET}"
             echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
@@ -635,7 +654,7 @@ while true; do
             echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
             read -r
             ;;
-        4)
+        d|D)
             echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
             echo -e "${C_BOLD_BLUE}│ 停止 OpenList 和 aria2 │${C_RESET}"
             echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
@@ -643,27 +662,33 @@ while true; do
             echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
             read -r
             ;;
-        5)
+        e|E)
             edit_openlist_config
             ;;
-        6)
+        f|F)
             edit_aria2_config
             ;;
-        7)
+        g|G)
             view_openlist_log
             ;;
-        8)
+        h|H)
             view_aria2_log
             ;;
-        9)
+        i|I)
             update_bt_tracker
             ;;
-        e|E)
+        j|J)
+            echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
+            echo -e "${C_BOLD_BLUE}│ 更新管理脚本           │${C_RESET}"
+            echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
+            update_script
+            ;;
+        k|K)
             echo -e "${INFO} 退出程序。"
             exit 0
             ;;
         *)
-            echo -e "${ERROR} 无效选项，请输入 0-9 或 e。"
+            echo -e "${ERROR} 无效选项，请输入 a-k。"
             echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
             read -r
             ;;
