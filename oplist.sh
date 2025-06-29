@@ -115,7 +115,6 @@ get_aria2_secret() {
         chmod 600 "$ARIA2_SECRET_FILE"
     fi
     ARIA2_SECRET=$(cat "$ARIA2_SECRET_FILE")
-    echo -e "${INFO} aria2 RPC Token: ${C_BOLD_YELLOW}$ARIA2_SECRET${C_RESET}"
 }
 
 check_aria2_files() {
