@@ -58,7 +58,8 @@ ensure_oplist_shortcut() {
         if [ "$REAL_PATH" != "$OPLIST_PATH" ]; then
             cp "$REAL_PATH" "$OPLIST_PATH"
             chmod +x "$OPLIST_PATH"
-            echo -e "${INFO} 你现在可以在任意位置输入 ${C_BOLD_YELLOW}oplist${C_RESET} 快捷启动管理菜单！"
+            echo -e "${SUCCESS} 已将脚本安装为全局命令：${C_BOLD_YELLOW}oplist${C_RESET}"
+            echo -e "${INFO} 你现在可以随时输入 ${C_BOLD_YELLOW}oplist${C_RESET} 启动管理菜单！"
             sleep 3
         fi
     fi
@@ -116,47 +117,55 @@ get_aria2_secret() {
     ARIA2_SECRET=$(cat "$ARIA2_SECRET_FILE")
 }
 
-download_file() {
-    local url="$1" dest="$2" chmod_perm="$3" success_msg="$4" error_msg="$5"
-    if [ ! -f "$dest" ]; then
-        echo "$error_msg 文件缺失，正在下载..."
-        wget -q --no-check-certificate --timeout=10 --tries=3 "$url" -O "$dest" 2>>"$ARIA2_DIR/download.log"
-        if [ -s "$dest" ]; then
-            [ -n "$chmod_perm" ] && chmod "$chmod_perm" "$dest"
-            echo "$success_msg：$dest"
-        else
-            echo "下载 $error_msg 失败，请检查网络或查看日志 $ARIA2_DIR/download.log。"
-            rm -f "$dest"
-            return 1
-        fi
-    fi
-    return 0
-}
-
 check_aria2_files() {
-    local missing_files=0
-    if [ -z "$ARIA2_DIR" ] || [ -z "$ARIA2_CONF" ] || [ -z "$ARIA2_SECRET" ]; then
-        echo "必需的环境变量 ARIA2_DIR、ARIA2_CONF 或 ARIA2_SECRET 未定义。"
-        return 1
-    fi
     get_aria2_secret
     mkdir -p "$ARIA2_DIR"
     touch "$ARIA2_DIR/aria2.session"
-    chmod 600 "$ARIA2_DIR/aria2.session"
-    echo "检查 aria2 相关文件..."
-    download_file "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/aria2.conf" \
-                  "$ARIA2_CONF" "600" \
-                  "已下载并配置 aria2 配置文件" "aria2 配置文件" || missing_files=1
-    [ -f "$ARIA2_CONF" ] && sed -i "s|^rpc-secret=.*|rpc-secret=$ARIA2_SECRET|" "$ARIA2_CONF"
-    download_file "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/clean.sh" \
-                  "$ARIA2_DIR/clean.sh" "+x" \
-                  "已下载 clean.sh 并赋予执行权限" "clean.sh" || missing_files=1
-    download_file "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht.dat" \
-                  "$ARIA2_DIR/dht.dat" "" \
-                  "已下载 dht.dat" "dht.dat" || missing_files=1
-    download_file "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht6.dat" \
-                  "$ARIA2_DIR/dht6.dat" "" \
-                  "已下载 dht6.dat" "dht6.dat" || missing_files=1
+    chmod a+x "$ARIA2_DIR/aria2.session"
+    
+    local missing_files=0
+    echo -e "${INFO} 检查 aria2 相关文件..."
+    
+    if ! command -v wget >/dev/null 2>&1; then
+        echo -e "${ERROR} 未检测到 wget，请先安装 wget。"
+        return 1
+    fi
+
+    local files=(
+        "aria2.conf|https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/aria2.conf|600|rpc-secret=$ARIA2_SECRET"
+        "clean.sh|https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/clean.sh|+x"
+        "dht.dat|https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht.dat"
+        "dht6.dat|https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht6.dat"
+    )
+
+    for file_info in "${files[@]}"; do
+        IFS='|' read -r filename url perm post_process <<< "$file_info"
+        local filepath="$ARIA2_DIR/$filename"
+        
+        if [ ! -f "$filepath" ]; then
+            echo -e "${INFO} $filename 文件缺失，正在下载..."
+            wget -q --no-check-certificate "$url" -O "$filepath"
+            
+            if [ -s "$filepath" ]; then
+                if [ -n "$perm" ]; then
+                    if [ "$perm" = "+x" ]; then
+                        chmod +x "$filepath"
+                    else
+                        chmod "$perm" "$filepath"
+                    fi
+                fi
+                if [ -n "$post_process" ]; then
+                    sed -i "s|^rpc-secret=.*|$post_process|" "$filepath"
+                fi
+                echo -e "${SUCCESS} 已下载${perm:+并配置} $filename：${C_BOLD_YELLOW}$filepath${C_RESET}"
+            else
+                echo -e "${ERROR} 下载 $filename 失败，请检查网络或稍后再试。"
+                rm -f "$filepath"
+                missing_files=1
+            fi
+        fi
+    done
+    
     return $missing_files
 }
 
@@ -397,7 +406,7 @@ stop_all() {
         PIDS=$(pgrep -f "$ARIA2_CMD --conf-path=$ARIA2_CONF")
         echo -e "${INFO} 检测到 aria2 正在运行，PID：${C_BOLD_YELLOW}$PIDS${C_RESET}"
         echo -e "${INFO} 正在终止 aria2 ..."
-        pkill -f "$ARIA2_CMD --conf-path=$ARIA2_CONF"
+        pkill -f "$ARIA2_CMD --conf-path=$ARIA2_CONF")
         sleep 1
         if check_aria2_process; then
             echo -e "${ERROR} 无法终止 aria2 进程。"
