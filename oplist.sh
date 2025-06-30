@@ -98,8 +98,8 @@ check_version_bg() {
 get_github_token() {
     if [ ! -f "$GITHUB_TOKEN_FILE" ]; then
         echo -e "${INFO} 检测到你未设置 GitHub Token，请按项目readme提示获取Token。"
-        echo -e "${C_BOLD_CYAN}请输入你的 GitHub Token:${C_RESET}"
-        read -p "" GITHUB_TOKEN
+        echo -ne "${C_BOLD_CYAN}请输入你的 GitHub Token:${C_RESET}"
+        read GITHUB_TOKEN
         echo "$GITHUB_TOKEN" > "$GITHUB_TOKEN_FILE"
         chmod 600 "$GITHUB_TOKEN_FILE"
     fi
