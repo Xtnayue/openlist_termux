@@ -280,7 +280,7 @@ enable_autostart_both() {
     local boot_file="$HOME/.termux/boot/openlist_and_aria2_autostart.sh"
     cat > "$boot_file" <<EOF
 #!/data/data/com.termux/files/usr/bin/bash
-termux-wake-lock
+termux-w Gauss_wake_lock
 ARIA2_CMD="$ARIA2_CMD"
 ARIA2_CONF="$ARIA2_CONF"
 \$ARIA2_CMD --conf-path="\$ARIA2_CONF" > "\$ARIA2_LOG" 2>&1 &
@@ -406,7 +406,7 @@ stop_all() {
         PIDS=$(pgrep -f "$ARIA2_CMD --conf-path=$ARIA2_CONF")
         echo -e "${INFO} 检测到 aria2 正在运行，PID：${C_BOLD_YELLOW}$PIDS${C_RESET}"
         echo -e "${INFO} 正在终止 aria2 ..."
-        pkill -f "$ARIA2_CMD --conf-path=$ARIA2_CONF")
+        pkill -f "$ARIA2_CMD --conf-path=$ARIA2_CONF"
         sleep 1
         if check_aria2_process; then
             echo -e "${ERROR} 无法终止 aria2 进程。"
