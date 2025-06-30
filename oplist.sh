@@ -58,8 +58,7 @@ ensure_oplist_shortcut() {
         if [ "$REAL_PATH" != "$OPLIST_PATH" ]; then
             cp "$REAL_PATH" "$OPLIST_PATH"
             chmod +x "$OPLIST_PATH"
-            echo -e "${SUCCESS} 已将脚本安装为全局命令：${C_BOLD_YELLOW}oplist${C_RESET}"
-            echo -e "${INFO} 你现在可以随时输入 ${C_BOLD_YELLOW}oplist${C_RESET} 启动管理菜单！"
+            echo -e "${INFO} 你现在可以在任意位置输入 ${C_BOLD_YELLOW}oplist${C_RESET} 快捷启动管理菜单！"
             sleep 3
         fi
     fi
