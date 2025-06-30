@@ -116,69 +116,47 @@ get_aria2_secret() {
     ARIA2_SECRET=$(cat "$ARIA2_SECRET_FILE")
 }
 
+download_file() {
+    local url="$1" dest="$2" chmod_perm="$3" success_msg="$4" error_msg="$5"
+    if [ ! -f "$dest" ]; then
+        echo "$error_msg 文件缺失，正在下载..."
+        wget -q --no-check-certificate --timeout=10 --tries=3 "$url" -O "$dest" 2>>"$ARIA2_DIR/download.log"
+        if [ -s "$dest" ]; then
+            [ -n "$chmod_perm" ] && chmod "$chmod_perm" "$dest"
+            echo "$success_msg：$dest"
+        else
+            echo "下载 $error_msg 失败，请检查网络或查看日志 $ARIA2_DIR/download.log。"
+            rm -f "$dest"
+            return 1
+        fi
+    fi
+    return 0
+}
+
 check_aria2_files() {
+    local missing_files=0
+    if [ -z "$ARIA2_DIR" ] || [ -z "$ARIA2_CONF" ] || [ -z "$ARIA2_SECRET" ]; then
+        echo "必需的环境变量 ARIA2_DIR、ARIA2_CONF 或 ARIA2_SECRET 未定义。"
+        return 1
+    fi
     get_aria2_secret
     mkdir -p "$ARIA2_DIR"
     touch "$ARIA2_DIR/aria2.session"
-    chmod a+x "$ARIA2_DIR/aria2.session"
-    local missing_files=0
-    echo -e "${INFO} 检查 aria2 相关文件..."
-    if command -v wget >/dev/null 2>&1; then
-        # Check and download aria2.conf if missing
-        if [ ! -f "$ARIA2_CONF" ]; then
-            echo -e "${INFO} aria2 配置文件缺失，正在下载..."
-            wget -q --no-check-certificate "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/aria2.conf" -O "$ARIA2_CONF"
-            if [ -s "$ARIA2_CONF" ]; then
-                sed -i "s|^rpc-secret=.*|rpc-secret=$ARIA2_SECRET|" "$ARIA2_CONF"
-                chmod 600 "$ARIA2_CONF"
-                echo -e "${SUCCESS} 已下载并配置 aria2 配置文件：${C_BOLD_YELLOW}$ARIA2_CONF${C_RESET}"
-            else
-                echo -e "${ERROR} 下载 aria2 配置文件失败，请检查网络或稍后再试。"
-                rm -f "$ARIA2_CONF"
-                missing_files=1
-            fi
-        fi
-        # Check and download clean.sh if missing
-        if [ ! -f "$ARIA2_DIR/clean.sh" ]; then
-            echo -e "${INFO} clean.sh 文件缺失，正在下载..."
-            wget -q --no-check-certificate "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/clean.sh" -O "$ARIA2_DIR/clean.sh"
-            if [ -s "$ARIA2_DIR/clean.sh" ]; then
-                chmod +x "$ARIA2_DIR/clean.sh"
-                echo -e "${SUCCESS} 已下载 clean.sh 并赋予执行权限：${C_BOLD_YELLOW}$ARIA2_DIR/clean.sh${C_RESET}"
-            else
-                echo -e "${ERROR} 下载 clean.sh 失败，请检查网络或稍后再试。"
-                rm -f "$ARIA2_DIR/clean.sh"
-                missing_files=1
-            fi
-        fi
-        # Check and download dht.dat if missing
-        if [ ! -f "$ARIA2_DIR/dht.dat" ]; then
-            echo -e "${INFO} dht.dat 文件缺失，正在下载..."
-            wget -q --no-check-certificate "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht.dat" -O "$ARIA2_DIR/dht.dat"
-            if [ -s "$ARIA2_DIR/dht.dat" ]; then
-                echo -e "${SUCCESS} 已下载 dht.dat：${C_BOLD_YELLOW}$ARIA2_DIR/dht.dat${C_RESET}"
-            else
-                echo -e "${ERROR} 下载 dht.dat 失败，请检查网络或稍后再试。"
-                rm -f "$ARIA2_DIR/dht.dat"
-                missing_files=1
-            fi
-        fi
-        # Check and download dht6.dat if missing
-        if [ ! -f "$ARIA2_DIR/dht6.dat" ]; then
-            echo -e "${INFO} dht6.dat 文件缺失，正在下载..."
-            wget -q --no-check-certificate "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht6.dat" -O "$ARIA2_DIR/dht6.dat"
-            if [ -s "$ARIA2_DIR/dht6.dat" ]; then
-                echo -e "${SUCCESS} 已下载 dht6.dat：${C_BOLD_YELLOW}$ARIA2_DIR/dht6.dat${C_RESET}"
-            else
-                echo -e "${ERROR} 下载 dht6.dat 失败，请检查网络或稍后再试。"
-                rm -f "$ARIA2_DIR/dht6.dat"
-                missing_files=1
-            fi
-        fi
-    else
-        echo -e "${ERROR} 未检测到 wget，请先安装 wget。"
-        return 1
-    fi
+    chmod 600 "$ARIA2_DIR/aria2.session"
+    echo "检查 aria2 相关文件..."
+    download_file "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/aria2.conf" \
+                  "$ARIA2_CONF" "600" \
+                  "已下载并配置 aria2 配置文件" "aria2 配置文件" || missing_files=1
+    [ -f "$ARIA2_CONF" ] && sed -i "s|^rpc-secret=.*|rpc-secret=$ARIA2_SECRET|" "$ARIA2_CONF"
+    download_file "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/clean.sh" \
+                  "$ARIA2_DIR/clean.sh" "+x" \
+                  "已下载 clean.sh 并赋予执行权限" "clean.sh" || missing_files=1
+    download_file "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht.dat" \
+                  "$ARIA2_DIR/dht.dat" "" \
+                  "已下载 dht.dat" "dht.dat" || missing_files=1
+    download_file "https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht6.dat" \
+                  "$ARIA2_DIR/dht6.dat" "" \
+                  "已下载 dht6.dat" "dht6.dat" || missing_files=1
     return $missing_files
 }
 
