@@ -315,7 +315,7 @@ start_all() {
     fi
     mkdir -p "$OPENLIST_LOGDIR"
     if check_openlist_process; then
-        PIDS=$(pgrep -f "$OPENLIST_BIN server")
+        PIDS=$(pgrep -f "openlist server")
         echo -e "${WARN} OpenList server 已运行，PID：${C_BOLD_YELLOW}$PIDS${C_RESET}"
     else
         if [ ! -f "$OPENLIST_BIN" ]; then
@@ -327,7 +327,7 @@ start_all() {
         fi
         divider
         echo -e "${INFO} 启动 OpenList server..."
-        openlist server > "$OPENLIST_LOG" 2>&1 &
+        openlist server '/data/data/com.termux/files/home/Openlist/data' > "$OPENLIST_LOG" 2>&1 &
         OPENLIST_PID=$!
         cd "$SCRIPT_DIR"
         sleep 3
@@ -554,7 +554,7 @@ reset_openlist_password() {
         elif [ -z "$pwd1" ]; then
             echo -e "${ERROR} 密码不能为空，请重新输入。"
         else
-            openlist admin set "$pwd1"
+            openlist admin set "$pwd1" '/data/data/com.termux/files/home/Openlist/data'
             echo -e "${SUCCESS} 密码已设置完成。"
             break
         fi
