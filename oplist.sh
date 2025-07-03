@@ -554,7 +554,7 @@ reset_openlist_password() {
         elif [ -z "$pwd1" ]; then
             echo -e "${ERROR} 密码不能为空，请重新输入。"
         else
-            "cd $HOME && openlist admin set "$pwd1"
+            cd $HOME && openlist admin set "$pwd1"
             echo -e "${SUCCESS} 密码已设置完成。"
             break
         fi
