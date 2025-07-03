@@ -22,22 +22,13 @@ init_paths() {
     REAL_PATH=$(readlink -f "$0")
     SCRIPT_NAME=$(basename "$REAL_PATH")
     SCRIPT_DIR=$(dirname "$REAL_PATH")
-    if [ "$SCRIPT_NAME" = "oplist" ] && [ "$SCRIPT_DIR" = "$PREFIX/bin" ]; then
-        ORIGINAL_SCRIPT=$(find "$HOME" -name "oplist.sh" -type f 2>/dev/null | head -n 1)
-        if [ -n "$ORIGINAL_SCRIPT" ]; then
-            SCRIPT_DIR=$(dirname "$ORIGINAL_SCRIPT")
-            cd "$SCRIPT_DIR" || { echo -e "${ERROR} 无法切换到脚本目录"; exit 1; }
-        else
-            echo -e "${ERROR} 无法找到原始脚本位置，请重新安装"
-            exit 1
-        fi
-    fi
-    cd "$SCRIPT_DIR" || { echo -e "${ERROR} 无法切换到脚本目录"; exit 1; }
     FILE_NAME="openlist-android-arm64.tar.gz"
-    DEST_DIR="$SCRIPT_DIR/Openlist"
-    OPENLIST_LOGDIR="$DEST_DIR/data/log"
+    DEST_DIR="$HOME/Openlist"
+    DATA_DIR="$DEST_DIR/data"
+    OPENLIST_BIN="$PREFIX/bin/openlist"
+    OPENLIST_LOGDIR="$DATA_DIR/log"
     OPENLIST_LOG="$OPENLIST_LOGDIR/openlist.log"
-    OPENLIST_CONF="$DEST_DIR/data/config.json"
+    OPENLIST_CONF="$DATA_DIR/config.json"
     ARIA2_DIR="$SCRIPT_DIR/aria2"
     ARIA2_LOG="$ARIA2_DIR/aria2.log"
     ARIA2_CONF="$ARIA2_DIR/aria2.conf"
@@ -45,7 +36,7 @@ init_paths() {
     GITHUB_TOKEN_FILE="$HOME/.github_token"
     ARIA2_SECRET_FILE="$HOME/.aria2_secret"
     OPLIST_PATH="$PREFIX/bin/oplist"
-    CACHE_DIR="$DEST_DIR/.cache"
+    CACHE_DIR="$DATA_DIR/.cache"
     VERSION_CACHE="$CACHE_DIR/version.cache"
     VERSION_CHECKING="$CACHE_DIR/version.checking"
 }
@@ -74,8 +65,8 @@ init_cache_dir() {
 }
 
 get_local_version() {
-    if [ -f "$DEST_DIR/openlist" ]; then
-        "$DEST_DIR/openlist" version 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n1
+    if [ -f "$OPENLIST_BIN" ]; then
+        "$OPENLIST_BIN" version 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n1
     fi
 }
 
@@ -229,12 +220,11 @@ install_openlist() {
     if [ ! -f "openlist" ]; then
         echo -e "${ERROR} 未找到 openlist 可执行文件。"; cd - >/dev/null; return 1
     fi
-    echo -e "${INFO} 创建文件夹 ${C_BOLD_YELLOW}$DEST_DIR${C_RESET} ..."
     mkdir -p "$DEST_DIR"
-    mv -f openlist "$DEST_DIR/" || { echo -e "${ERROR} 移动 openlist 文件失败。"; cd - >/dev/null; return 1; }
-    chmod +x "$DEST_DIR/openlist"
+    mv -f openlist "$OPENLIST_BIN"
+    chmod +x "$OPENLIST_BIN"
     rm -f "$FILE_NAME"
-    echo -e "${SUCCESS} OpenList 安装完成！"
+    echo -e "${SUCCESS} OpenList 安装完成！（已放入 $OPENLIST_BIN）"
     cd - >/dev/null
     return 0
 }
@@ -255,9 +245,8 @@ update_openlist() {
     download_with_progress "$DOWNLOAD_URL" "$FILE_NAME" || { echo -e "${ERROR} 下载文件失败。"; cd - >/dev/null; return 1; }
     echo -e "${INFO} 正在解压 ${C_BOLD_YELLOW}$FILE_NAME${C_RESET} ..."
     extract_file "$FILE_NAME" || { echo -e "${ERROR} 解压文件失败。"; cd - >/dev/null; return 1; }
-    rm -f "$DEST_DIR/openlist"
-    mv -f openlist "$DEST_DIR/"
-    chmod +x "$DEST_DIR/openlist"
+    mv -f openlist "$OPENLIST_BIN"
+    chmod +x "$OPENLIST_BIN"
     rm -f "$FILE_NAME"
     rm -f "$VERSION_CACHE"
     echo -e "${SUCCESS} OpenList 更新完成！"
@@ -266,7 +255,6 @@ update_openlist() {
 }
 
 check_openlist_process() {
-    OPENLIST_BIN=$(readlink -f "$DEST_DIR/openlist")
     pgrep -f "$OPENLIST_BIN server" >/dev/null 2>&1
 }
 
@@ -283,10 +271,9 @@ termux-wake-lock
 ARIA2_CMD="$ARIA2_CMD"
 ARIA2_CONF="$ARIA2_CONF"
 \$ARIA2_CMD --conf-path="\$ARIA2_CONF" > "\$ARIA2_LOG" 2>&1 &
-OPENLIST_DIR="$DEST_DIR"
 OPENLIST_LOG="$OPENLIST_LOG"
-cd "\$OPENLIST_DIR" || exit 1
-"\$OPENLIST_DIR/openlist" server > "\$OPENLIST_LOG" 2>&1 &
+cd "$DATA_DIR/.." || exit 1
+"$OPENLIST_BIN" server > "\$OPENLIST_LOG" 2>&1 &
 EOF
     chmod +x "$boot_file"
     echo -e "${SUCCESS} OpenList 和 aria2 已成功设置开机自启"
@@ -327,22 +314,20 @@ start_all() {
         fi
     fi
     mkdir -p "$OPENLIST_LOGDIR"
-    OPENLIST_BIN=$(readlink -f "$DEST_DIR/openlist")
     if check_openlist_process; then
         PIDS=$(pgrep -f "$OPENLIST_BIN server")
         echo -e "${WARN} OpenList server 已运行，PID：${C_BOLD_YELLOW}$PIDS${C_RESET}"
     else
-        if [ ! -f "$DEST_DIR/openlist" ]; then
+        if [ ! -f "$OPENLIST_BIN" ]; then
             echo -e "${ERROR} 未找到 openlist 可执行文件。"
             return 1
         fi
-        if [ ! -x "$DEST_DIR/openlist" ]; then
-            chmod +x "$DEST_DIR/openlist"
+        if [ ! -x "$OPENLIST_BIN" ]; then
+            chmod +x "$OPENLIST_BIN"
         fi
         divider
         echo -e "${INFO} 启动 OpenList server..."
-        cd "$DEST_DIR" || { echo -e "${ERROR} 进入 ${C_BOLD_YELLOW}$DEST_DIR${C_RESET} 失败。"; return 1; }
-        "$OPENLIST_BIN" server --data '/data/data/com.termux/files/home/Openlist/data' > "$OPENLIST_LOG" 2>&1 &
+        openlist server > "$OPENLIST_LOG" 2>&1 &
         OPENLIST_PID=$!
         cd "$SCRIPT_DIR"
         sleep 3
@@ -385,7 +370,6 @@ start_all() {
 }
 
 stop_all() {
-    OPENLIST_BIN=$(readlink -f "$DEST_DIR/openlist")
     if check_openlist_process; then
         PIDS=$(pgrep -f "$OPENLIST_BIN server")
         echo -e "${INFO} 检测到 OpenList server 正在运行，PID：${C_BOLD_YELLOW}$PIDS${C_RESET}"
@@ -427,7 +411,6 @@ aria2_status_line() {
 }
 
 openlist_status_line() {
-    OPENLIST_BIN=$(readlink -f "$DEST_DIR/openlist")
     if check_openlist_process; then
         PIDS=$(pgrep -f "$OPENLIST_BIN server")
         echo -e "${INFO} OpenList 状态：${C_BOLD_GREEN}运行中 (PID: $PIDS)${C_RESET}"
@@ -571,7 +554,7 @@ reset_openlist_password() {
         elif [ -z "$pwd1" ]; then
             echo -e "${ERROR} 密码不能为空，请重新输入。"
         else
-            $DEST_DIR/openlist admin set "$pwd1" --data '/data/data/com.termux/files/home/Openlist/data'
+            openlist admin set "$pwd1"
             echo -e "${SUCCESS} 密码已设置完成。"
             break
         fi
@@ -584,13 +567,13 @@ uninstall_all() {
     echo -e "${C_BOLD_RED}!!! 卸载将删除所有 OpenList 及 aria2 数据和配置，是否继续？(y/n):${C_RESET}"
     read confirm
     if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
-        pkill -f "$DEST_DIR/openlist"
+        pkill -f "$OPENLIST_BIN"
         pkill -f "$ARIA2_CMD"
         if command -v pkg >/dev/null 2>&1; then
             pkg uninstall -y aria2
         fi
         rm -rf "$DEST_DIR" "$ARIA2_DIR" "$GITHUB_TOKEN_FILE" "$ARIA2_SECRET_FILE"
-        rm -f "$HOME/oplist.sh" "$PREFIX/bin/oplist"
+        rm -f "$HOME/oplist.sh" "$OPLIST_PATH" "$OPENLIST_BIN"
         echo -e "${SUCCESS} 已完成一键卸载。"
     else
         echo -e "${INFO} 已取消卸载。"
