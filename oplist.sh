@@ -327,7 +327,7 @@ start_all() {
         fi
         divider
         echo -e "${INFO} 启动 OpenList server..."
-        openlist server '/data/data/com.termux/files/home/Openlist/data' > "$OPENLIST_LOG" 2>&1 &
+        openlist server --data '/data/data/com.termux/files/home/Openlist/data' > "$OPENLIST_LOG" 2>&1 &
         OPENLIST_PID=$!
         cd "$SCRIPT_DIR"
         sleep 3
@@ -554,7 +554,7 @@ reset_openlist_password() {
         elif [ -z "$pwd1" ]; then
             echo -e "${ERROR} 密码不能为空，请重新输入。"
         else
-            openlist admin set "$pwd1" '/data/data/com.termux/files/home/Openlist/data'
+            openlist admin set --data "$pwd1" '/data/data/com.termux/files/home/Openlist/data'
             echo -e "${SUCCESS} 密码已设置完成。"
             break
         fi
