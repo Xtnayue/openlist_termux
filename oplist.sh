@@ -7,6 +7,10 @@ C_BOLD_RED="\033[1;31m"
 C_BOLD_CYAN="\033[1;36m"
 C_BOLD_MAGENTA="\033[1;35m"
 C_BOLD_WHITE="\033[1;37m"
+C_BOLD_GRAY="\033[1;30m"
+C_BOLD_ORANGE="\033[38;5;208m"
+C_BOLD_PINK="\033[38;5;213m"
+C_BOLD_LIME="\033[38;5;118m"
 C_RESET="\033[0m"
 
 INFO="${C_BOLD_BLUE}[INFO]${C_RESET}"
@@ -88,10 +92,12 @@ check_version_bg() {
        [ ! -f "$VERSION_CHECKING" ]; then
         get_github_token
         touch "$VERSION_CHECKING"
-        (curl -s -m 10 -H "Authorization: token $GITHUB_TOKEN" \
-          "https://api.github.com/repos/OpenListTeam/OpenList/releases/latest" | \
-          sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n1 > "$VERSION_CACHE"
-        rm -f "$VERSION_CHECKING") &
+        (
+            curl -s -m 10 -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/OpenListTeam/OpenList/releases/latest" | \
+            sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n1 > "$VERSION_CACHE"
+            rm -f "$VERSION_CHECKING"
+        ) &
     fi
 }
 
@@ -110,7 +116,7 @@ get_aria2_secret() {
     if [ ! -f "$ARIA2_SECRET_FILE" ]; then
         echo -e "${INFO} 检测到你未设置 aria2 RPC 密钥。"
         echo -e "${C_BOLD_CYAN}请输入aria2 RPC密钥:${C_RESET}"
-        read -p "" ARIA2_SECRET
+        read ARIA2_SECRET
         echo "$ARIA2_SECRET" > "$ARIA2_SECRET_FILE"
         chmod 600 "$ARIA2_SECRET_FILE"
     fi
@@ -122,30 +128,24 @@ check_aria2_files() {
     mkdir -p "$ARIA2_DIR"
     touch "$ARIA2_DIR/aria2.session"
     chmod a+x "$ARIA2_DIR/aria2.session"
-    
     local missing_files=0
     echo -e "${INFO} 检查 aria2 相关文件..."
-    
     if ! command -v wget >/dev/null 2>&1; then
         echo -e "${ERROR} 未检测到 wget，请先安装 wget。"
         return 1
     fi
-
     local files=(
         "aria2.conf|https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/aria2.conf|600|rpc-secret=$ARIA2_SECRET"
         "clean.sh|https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/clean.sh|+x"
         "dht.dat|https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht.dat"
         "dht6.dat|https://raw.githubusercontent.com/giturass/aria2.conf/refs/heads/master/dht6.dat"
     )
-
     for file_info in "${files[@]}"; do
         IFS='|' read -r filename url perm post_process <<< "$file_info"
         local filepath="$ARIA2_DIR/$filename"
-        
         if [ ! -f "$filepath" ]; then
             echo -e "${INFO} $filename 文件缺失，正在下载..."
             wget -q --no-check-certificate "$url" -O "$filepath"
-            
             if [ -s "$filepath" ]; then
                 if [ -n "$perm" ]; then
                     if [ "$perm" = "+x" ]; then
@@ -165,7 +165,6 @@ check_aria2_files() {
             fi
         fi
     done
-    
     return $missing_files
 }
 
@@ -280,11 +279,10 @@ enable_autostart_both() {
     local boot_file="$HOME/.termux/boot/openlist_and_aria2_autostart.sh"
     cat > "$boot_file" <<EOF
 #!/data/data/com.termux/files/usr/bin/bash
-termux-w Gauss_wake_lock
+termux-wake-lock
 ARIA2_CMD="$ARIA2_CMD"
 ARIA2_CONF="$ARIA2_CONF"
 \$ARIA2_CMD --conf-path="\$ARIA2_CONF" > "\$ARIA2_LOG" 2>&1 &
-
 OPENLIST_DIR="$DEST_DIR"
 OPENLIST_LOG="$OPENLIST_LOG"
 cd "\$OPENLIST_DIR" || exit 1
@@ -375,8 +373,8 @@ start_all() {
         termux-wake-lock
     fi
     echo -e "${C_BOLD_CYAN}是否开启 OpenList 和 aria2 开机自启？(y/n):${C_RESET}"
-    read -r enable_boot
-    if [[ "$enable_boot" =~ ^[Yy]$ ]]; then
+    read enable_boot
+    if [ "$enable_boot" = "y" ] || [ "$enable_boot" = "Y" ]; then
         enable_autostart_both
     else
         disable_autostart_both
@@ -439,45 +437,33 @@ openlist_status_line() {
 }
 
 edit_openlist_config() {
-    if ! command -v vim >/dev/null 2>&1; then
-        echo -e "${ERROR} 未检测到 vim，请先安装 vim。"
-        echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-        read -r
-        return 1
-    fi
     echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
     echo -e "${C_BOLD_BLUE}│ 编辑 OpenList 配置文件   │${C_RESET}"
     echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
     if [ -f "$OPENLIST_CONF" ]; then
         echo -e "${INFO} 正在编辑 OpenList 配置文件：${C_BOLD_YELLOW}$OPENLIST_CONF${C_RESET}"
-        vim "$OPENLIST_CONF"
+        vi "$OPENLIST_CONF"
         echo -e "${SUCCESS} OpenList 配置文件编辑完成。"
     else
         echo -e "${ERROR} 未找到 OpenList 配置文件：${C_BOLD_YELLOW}$OPENLIST_CONF${C_RESET}"
     fi
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-    read -r
+    read
 }
 
 edit_aria2_config() {
-    if ! command -v vim >/dev/null 2>&1; then
-        echo -e "${ERROR} 未检测到 vim，请先安装 vim。"
-        echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-        read -r
-        return 1
-    fi
     echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
     echo -e "${C_BOLD_BLUE}│ 编辑 aria2 配置文件      │${C_RESET}"
     echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
     if [ -f "$ARIA2_CONF" ]; then
         echo -e "${INFO} 正在编辑 aria2 配置文件：${C_BOLD_YELLOW}$ARIA2_CONF${C_RESET}"
-        vim "$ARIA2_CONF"
+        vi "$ARIA2_CONF"
         echo -e "${SUCCESS} aria2 配置文件编辑完成。"
     else
         echo -e "${ERROR} 未找到 aria2 配置文件：${C_BOLD_YELLOW}$ARIA2_CONF${C_RESET}"
     fi
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-    read -r
+    read
 }
 
 view_openlist_log() {
@@ -491,7 +477,7 @@ view_openlist_log() {
         echo -e "${ERROR} 未找到 OpenList 日志文件：${C_BOLD_YELLOW}$OPENLIST_LOG${C_RESET}"
     fi
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-    read -r
+    read
 }
 
 view_aria2_log() {
@@ -505,14 +491,14 @@ view_aria2_log() {
         echo -e "${ERROR} 未找到 aria2 日志文件：${C_BOLD_YELLOW}$ARIA2_LOG${C_RESET}"
     fi
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-    read -r
+    read
 }
 
 update_bt_tracker() {
     if [ ! -f "$ARIA2_CONF" ]; then
         echo -e "${ERROR} 未找到 aria2 配置文件：${C_BOLD_YELLOW}$ARIA2_CONF${C_RESET}"
         echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-        read -r
+        read
         return 1
     fi
     get_github_token
@@ -527,7 +513,7 @@ update_bt_tracker() {
         echo -e "${ERROR} BT Tracker 更新失败，请检查网络或 GitHub Token。"
     fi
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-    read -r
+    read
 }
 
 update_script() {
@@ -547,7 +533,7 @@ update_script() {
     else
         echo -e "${ERROR} 未检测到 wget，请先安装 wget。"
         echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-        read -r
+        read
         return 1
     fi
     if [ -s "$TMP_FILE" ]; then
@@ -566,7 +552,77 @@ update_script() {
         rm -f "$TMP_FILE"
     fi
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-    read -r
+    read
+}
+
+reset_openlist_password() {
+    echo -e "${C_BOLD_BLUE}┌─────────────────────────────┐${C_RESET}"
+    echo -e "${C_BOLD_BLUE}│ OpenList 密码重置           │${C_RESET}"
+    echo -e "${C_BOLD_BLUE}└─────────────────────────────┘${C_RESET}"
+    while true; do
+        echo -ne "${C_BOLD_CYAN}请输入新密码:${C_RESET} "
+        read -s pwd1
+        echo
+        echo -ne "${C_BOLD_CYAN}请再次输入新密码:${C_RESET} "
+        read -s pwd2
+        echo
+        if [ "$pwd1" != "$pwd2" ]; then
+            echo -e "${ERROR} 两次输入的密码不一致，请重新输入。"
+        elif [ -z "$pwd1" ]; then
+            echo -e "${ERROR} 密码不能为空，请重新输入。"
+        else
+            $DEST_DIR/openlist admin set "$pwd1"
+            echo -e "${SUCCESS} 密码已设置完成。"
+            break
+        fi
+    done
+    echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
+    read
+}
+
+uninstall_all() {
+    echo -e "${C_BOLD_RED}!!! 卸载将删除所有 OpenList 及 aria2 数据和配置，是否继续？(y/n):${C_RESET}"
+    read confirm
+    if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+        pkill -f "$DEST_DIR/openlist"
+        pkill -f "$ARIA2_CMD"
+        if command -v pkg >/dev/null 2>&1; then
+            pkg uninstall -y aria2
+        fi
+        rm -rf "$DEST_DIR" "$ARIA2_DIR" "$GITHUB_TOKEN_FILE" "$ARIA2_SECRET_FILE"
+        rm -f "$HOME/oplist.sh" "$PREFIX/bin/oplist"
+        echo -e "${SUCCESS} 已完成一键卸载。"
+    else
+        echo -e "${INFO} 已取消卸载。"
+    fi
+    echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
+    read
+}
+
+show_more_menu() {
+    while true; do
+        clear
+        echo -e "${C_BOLD_BLUE}============= 更多功能 =============${C_RESET}"
+        echo -e "${C_BOLD_GREEN}1. OpenList 密码重置${C_RESET}"
+        echo -e "${C_BOLD_YELLOW}2. 编辑 OpenList 配置文件${C_RESET}"
+        echo -e "${C_BOLD_LIME}3. 编辑 aria2 配置文件${C_RESET}"
+        echo -e "${C_BOLD_CYAN}4. 更新 aria2 BT Tracker${C_RESET}"
+        echo -e "${C_BOLD_MAGENTA}5. 更新管理脚本${C_RESET}"
+        echo -e "${C_BOLD_RED}6. 一键卸载${C_RESET}"
+        echo -e "${C_BOLD_GRAY}0. 返回主菜单${C_RESET}"
+        echo -ne "${C_BOLD_CYAN}请输入选项 (0-6):${C_RESET} "
+        read sub_choice
+        case $sub_choice in
+            1) reset_openlist_password ;;
+            2) edit_openlist_config ;;
+            3) edit_aria2_config ;;
+            4) update_bt_tracker ;;
+            5) update_script ;;
+            6) uninstall_all ;;
+            0) break ;;
+            *) echo -e "${ERROR} 无效选项，请输入 0-6。"; read ;;
+        esac
+    done
 }
 
 show_menu() {
@@ -574,6 +630,7 @@ show_menu() {
     echo -e "${C_BOLD_BLUE}=====================================${C_RESET}"
     echo -e "${C_BOLD_MAGENTA}         🌟 OpenList 管理菜单 🌟${C_RESET}"
     echo -e "${C_BOLD_BLUE}=====================================${C_RESET}"
+
     init_cache_dir
     local_ver=$(get_local_version)
     latest_ver=$(get_latest_version)
@@ -588,23 +645,21 @@ show_menu() {
     else
         ver_status="${C_BOLD_YELLOW}有新版本 $latest_ver (当前 $local_ver)${C_RESET}"
     fi
+
     openlist_status_line
     aria2_status_line
     echo -e "${INFO} OpenList 版本：$ver_status"
     echo -e "${C_BOLD_BLUE}=====================================${C_RESET}"
-    echo -e "${C_BOLD_GREEN}a. 安装 OpenList${C_RESET}"
-    echo -e "${C_BOLD_YELLOW}b. 更新 OpenList${C_RESET}"
-    echo -e "${C_BOLD_CYAN}c. 启动 OpenList 和 aria2${C_RESET}"
-    echo -e "${C_BOLD_RED}d. 停止 OpenList 和 aria2${C_RESET}"
-    echo -e "${C_BOLD_MAGENTA}e. 编辑 OpenList 配置文件${C_RESET}"
-    echo -e "${C_BOLD_MAGENTA}f. 编辑 aria2 配置文件${C_RESET}"
-    echo -e "${C_BOLD_MAGENTA}g. 查看 OpenList 启动日志${C_RESET}"
-    echo -e "${C_BOLD_MAGENTA}h. 查看 aria2 启动日志${C_RESET}"
-    echo -e "${C_BOLD_YELLOW}i. 更新 aria2 BT Tracker${C_RESET}"
-    echo -e "${C_BOLD_YELLOW}j. 更新管理脚本${C_RESET}"
-    echo -e "${C_BOLD_WHITE}k. 退出${C_RESET}"
+    echo -e "${C_BOLD_GREEN}1. 安装 OpenList${C_RESET}"
+    echo -e "${C_BOLD_YELLOW}2. 更新 OpenList${C_RESET}"
+    echo -e "${C_BOLD_LIME}3. 启动 OpenList 和 aria2${C_RESET}"
+    echo -e "${C_BOLD_RED}4. 停止 OpenList 和 aria2${C_RESET}"
+    echo -e "${C_BOLD_ORANGE}5. 查看 OpenList 启动日志${C_RESET}"
+    echo -e "${C_BOLD_PINK}6. 查看 aria2 启动日志${C_RESET}"
+    echo -e "${C_BOLD_CYAN}7. 更多功能${C_RESET}"
+    echo -e "${C_BOLD_GRAY}0. 退出${C_RESET}"
     echo -e "${C_BOLD_BLUE}=====================================${C_RESET}"
-    echo -e "${C_BOLD_CYAN}请输入选项 (a-k):${C_RESET} \c"
+    echo -ne "${C_BOLD_CYAN}请输入选项 (0-7):${C_RESET} "
 }
 
 init_paths
@@ -613,69 +668,16 @@ ensure_oplist_shortcut
 while true; do
     show_menu
     check_version_bg
-    read -r choice
+    read choice
     case $choice in
-        a|A)
-            echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
-            echo -e "${C_BOLD_BLUE}│ 安装 OpenList           │${C_RESET}"
-            echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
-            install_openlist
-            echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-            read -r
-            ;;
-        b|B)
-            echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
-            echo -e "${C_BOLD_BLUE}│ 更新 OpenList           │${C_RESET}"
-            echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
-            update_openlist
-            echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-            read -r
-            ;;
-        c|C)
-            echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
-            echo -e "${C_BOLD_BLUE}│ 启动 OpenList 和 aria2 │${C_RESET}"
-            echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
-            start_all
-            echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-            read -r
-            ;;
-        d|D)
-            echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
-            echo -e "${C_BOLD_BLUE}│ 停止 OpenList 和 aria2 │${C_RESET}"
-            echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
-            stop_all
-            echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-            read -r
-            ;;
-        e|E)
-            edit_openlist_config
-            ;;
-        f|F)
-            edit_aria2_config
-            ;;
-        g|G)
-            view_openlist_log
-            ;;
-        h|H)
-            view_aria2_log
-            ;;
-        i|I)
-            update_bt_tracker
-            ;;
-        j|J)
-            echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
-            echo -e "${C_BOLD_BLUE}│ 更新管理脚本           │${C_RESET}"
-            echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
-            update_script
-            ;;
-        k|K)
-            echo -e "${INFO} 退出程序。"
-            exit 0
-            ;;
-        *)
-            echo -e "${ERROR} 无效选项，请输入 a-k。"
-            echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
-            read -r
-            ;;
+        1) install_openlist; echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"; read ;;
+        2) update_openlist; echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"; read ;;
+        3) start_all; echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"; read ;;
+        4) stop_all; echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"; read ;;
+        5) view_openlist_log ;;
+        6) view_aria2_log ;;
+        7) show_more_menu ;;
+        0) echo -e "${INFO} 退出程序。"; exit 0 ;;
+        *) echo -e "${ERROR} 无效选项，请输入 0-7。"; echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"; read ;;
     esac
 done
