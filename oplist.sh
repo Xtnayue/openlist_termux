@@ -342,7 +342,7 @@ start_all() {
         divider
         echo -e "${INFO} 启动 OpenList server..."
         cd "$DEST_DIR" || { echo -e "${ERROR} 进入 ${C_BOLD_YELLOW}$DEST_DIR${C_RESET} 失败。"; return 1; }
-        "$OPENLIST_BIN" server > "$OPENLIST_LOG" 2>&1 &
+        "$OPENLIST_BIN" server --data '/data/data/com.termux/files/home/Openlist/data' > "$OPENLIST_LOG" 2>&1 &
         OPENLIST_PID=$!
         cd "$SCRIPT_DIR"
         sleep 3
