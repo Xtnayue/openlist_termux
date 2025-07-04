@@ -29,7 +29,7 @@ init_paths() {
     OPENLIST_LOGDIR="$DATA_DIR/log"
     OPENLIST_LOG="$OPENLIST_LOGDIR/openlist.log"
     OPENLIST_CONF="$DATA_DIR/config.json"
-    ARIA2_DIR="$SCRIPT_DIR/aria2"
+    ARIA2_DIR="$HOME/aria2"
     ARIA2_LOG="$ARIA2_DIR/aria2.log"
     ARIA2_CONF="$ARIA2_DIR/aria2.conf"
     ARIA2_CMD="aria2c"
@@ -79,8 +79,7 @@ get_latest_version() {
 }
 
 check_version_bg() {
-    if { [ ! -f "$VERSION_CACHE" ] || [ ! "$(find "$VERSION_CACHE" -mmin -20)" ]; } && \
-       [ ! -f "$VERSION_CHECKING" ]; then
+    if { [ ! -f "$VERSION_CACHE" ] || [ ! "$(find "$VERSION_CACHE" -mmin -20)" ]; } && [ ! -f "$VERSION_CHECKING" ]; then
         get_github_token
         touch "$VERSION_CHECKING"
         (
@@ -117,8 +116,13 @@ get_aria2_secret() {
 check_aria2_files() {
     get_aria2_secret
     mkdir -p "$ARIA2_DIR"
-    touch "$ARIA2_DIR/aria2.session"
-    chmod a+x "$ARIA2_DIR/aria2.session"
+    if [ -d "$ARIA2_DIR/aria2.session" ]; then
+        rm -rf "$ARIA2_DIR/aria2.session"
+    fi
+    if [ ! -f "$ARIA2_DIR/aria2.session" ]; then
+        touch "$ARIA2_DIR/aria2.session"
+        chmod 600 "$ARIA2_DIR/aria2.session"
+    fi
     local missing_files=0
     echo -e "${INFO} 检查 aria2 相关文件..."
     if ! command -v wget >/dev/null 2>&1; then
@@ -583,18 +587,88 @@ uninstall_all() {
     read
 }
 
+backup_restore_menu() {
+    local backup_dir="$DEST_DIR/backup"
+    mkdir -p "$backup_dir"
+    echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
+    echo -e "${C_BOLD_BLUE}│    备份/还原功能         │${C_RESET}"
+    echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
+    echo -e "${C_BOLD_GREEN}1. 备份 Openlist 配置${C_RESET}"
+    echo -e "${C_BOLD_YELLOW}2. 还原 Openlist 配置${C_RESET}"
+    echo -e "${C_BOLD_GRAY}0. 返回${C_RESET}"
+    echo -ne "${C_BOLD_CYAN}请选择操作 (1-2, 0返回):${C_RESET} "
+    read br_choice
+    case $br_choice in
+        1)
+            local timestamp
+            timestamp=$(date "+%Y%m%d_%H%M%S")
+            local backup_file="$backup_dir/backup_${timestamp}.tar.gz"
+            if [ ! -d "$DATA_DIR" ]; then
+                echo -e "${ERROR} data 不存在，无法备份。"
+            else
+                if [ -d "$DATA_DIR" ]; then
+                    tar -czf "$backup_file" -C "$DEST_DIR" data
+                else
+                    tar -czf "$backup_file" --files-from /dev/null
+                fi
+                echo -e "${SUCCESS} 已备份到：${C_BOLD_YELLOW}$backup_file${C_RESET}"
+            fi
+            echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
+            read
+            ;;
+        2)
+            local backups=($(ls -1 "$backup_dir"/backup_*.tar.gz 2>/dev/null))
+            if [ ${#backups[@]} -eq 0 ]; then
+                echo -e "${WARN} 没有可用备份。"
+                echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
+                read
+                return
+            fi
+            echo -e "${INFO} 可用备份："
+            local i=1
+            for f in "${backups[@]}"; do
+                echo -e "  ${C_BOLD_YELLOW}$i.${C_RESET} $(basename "$f")"
+                ((i++))
+            done
+            echo -ne "${C_BOLD_CYAN}输入要还原的编号 (1-${#backups[@]})，或0返回:${C_RESET} "
+            read sel
+            if [[ ! "$sel" =~ ^[0-9]+$ ]] || [ "$sel" -lt 1 ] || [ "$sel" -gt "${#backups[@]}" ]; then
+                echo -e "${INFO} 已取消还原。"
+                echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
+                read
+                return
+            fi
+            local restore_file="${backups[$((sel-1))]}"
+            echo -e "${WARN} 这将覆盖当前 data 和 aria2 目录，是否继续？(y/n):${C_RESET}"
+            read confirm
+            if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
+                rm -rf "$DATA_DIR"
+                tar -xzf "$restore_file" -C "$DEST_DIR" data 2>/dev/null
+                echo -e "${SUCCESS} 恢复完成。"
+            else
+                echo -e "${INFO} 已取消还原操作。"
+            fi
+            echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
+            read
+            ;;
+        *)
+            ;;
+    esac
+}
+
 show_more_menu() {
     while true; do
         clear
         echo -e "${C_BOLD_BLUE}============= 更多功能 =============${C_RESET}"
-        echo -e "${C_BOLD_GREEN}1. OpenList 密码重置${C_RESET}"
+        echo -e "${C_BOLD_GREEN}1. 修改 OpenList 密码${C_RESET}"
         echo -e "${C_BOLD_YELLOW}2. 编辑 OpenList 配置文件${C_RESET}"
         echo -e "${C_BOLD_LIME}3. 编辑 aria2 配置文件${C_RESET}"
         echo -e "${C_BOLD_CYAN}4. 更新 aria2 BT Tracker${C_RESET}"
         echo -e "${C_BOLD_MAGENTA}5. 更新管理脚本${C_RESET}"
-        echo -e "${C_BOLD_RED}6. 一键卸载${C_RESET}"
+        echo -e "${C_BOLD_RED}6. 备份/还原 Openlist 配置${C_RESET}"
+        echo -e "${C_BOLD_LIME}7. 一键卸载${C_RESET}"
         echo -e "${C_BOLD_GRAY}0. 返回主菜单${C_RESET}"
-        echo -ne "${C_BOLD_CYAN}请输入选项 (0-6):${C_RESET} "
+        echo -ne "${C_BOLD_CYAN}请输入选项 (0-7):${C_RESET} "
         read sub_choice
         case $sub_choice in
             1) reset_openlist_password ;;
@@ -602,9 +676,10 @@ show_more_menu() {
             3) edit_aria2_config ;;
             4) update_bt_tracker ;;
             5) update_script ;;
-            6) uninstall_all ;;
+            6) backup_restore_menu ;;
+            7) uninstall_all ;;
             0) break ;;
-            *) echo -e "${ERROR} 无效选项，请输入 0-6。"; read ;;
+            *) echo -e "${ERROR} 无效选项，请输入 0-7。"; read ;;
         esac
     done
 }
