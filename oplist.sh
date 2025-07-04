@@ -19,16 +19,16 @@ SUCCESS="${C_BOLD_GREEN}[OK]${C_RESET}"
 WARN="${C_BOLD_YELLOW}[WARN]${C_RESET}"
 
 init_paths() {
-    REAL_PATH=$(readlink -f "$0")
-    SCRIPT_NAME=$(basename "$REAL_PATH")
-    SCRIPT_DIR=$(dirname "$REAL_PATH")
+   # REAL_PATH=$(readlink -f "$0")
+   # SCRIPT_NAME=$(basename "$REAL_PATH")
+   # SCRIPT_DIR=$(dirname "$REAL_PATH")
     FILE_NAME="openlist-android-arm64.tar.gz"
     DATA_DIR="$HOME/data"
     OPENLIST_BIN="$PREFIX/bin/openlist"
     OPENLIST_LOGDIR="$DATA_DIR/log"
     OPENLIST_LOG="$OPENLIST_LOGDIR/openlist.log"
     OPENLIST_CONF="$DATA_DIR/config.json"
-    ARIA2_DIR="$SCRIPT_DIR/aria2"
+    ARIA2_DIR="$HOME/aria2"
     ARIA2_LOG="$ARIA2_DIR/aria2.log"
     ARIA2_CONF="$ARIA2_DIR/aria2.conf"
     ARIA2_CMD="aria2c"
@@ -41,16 +41,17 @@ init_paths() {
 }
 
 ensure_oplist_shortcut() {
-    if ! echo "$PATH" | grep -q "$PREFIX/bin"; then
-        export PATH="$PATH:$PREFIX/bin"
-        if ! grep -q "$PREFIX/bin" ~/.bashrc 2>/dev/null; then
+   # if ! echo "$PATH" | grep -q "$PREFIX/bin"; then
+       # export PATH="$PATH:$PREFIX/bin"
+       # if ! grep -q "$PREFIX/bin" ~/.bashrc 2>/dev/null; then
             echo "export PATH=\$PATH:$PREFIX/bin" >> ~/.bashrc
-        fi
+       # fi
         echo -e "${INFO} 已将 ${C_BOLD_YELLOW}$PREFIX/bin${C_RESET} 添加到 PATH。请重启终端确保永久生效。"
-    fi
-    if [ ! -f "$OPLIST_PATH" ] || [ "$REAL_PATH" != "$(readlink -f "$OPLIST_PATH")" ]; then
-        if [ "$REAL_PATH" != "$OPLIST_PATH" ]; then
-            cp "$REAL_PATH" "$OPLIST_PATH"
+   # fi
+   # if [ ! -f "$OPLIST_PATH" ] || [ "$REAL_PATH" != "$(readlink -f "$OPLIST_PATH")" ]; then
+       # if [ "$REAL_PATH" != "$OPLIST_PATH" ]; then
+           # cp "$REAL_PATH" "$OPLIST_PATH"
+            cp "$HOME/oplist.sh" "$OPLIST_PATH"
             chmod +x "$OPLIST_PATH"
             echo -e "${SUCCESS} 已将脚本安装为全局命令：${C_BOLD_YELLOW}oplist${C_RESET}"
             echo -e "${INFO} 你现在可以随时输入 ${C_BOLD_YELLOW}oplist${C_RESET} 启动管理菜单！"
