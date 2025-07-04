@@ -56,8 +56,6 @@ ensure_oplist_shortcut() {
             echo -e "${SUCCESS} 已将脚本安装为全局命令：${C_BOLD_YELLOW}oplist${C_RESET}"
             echo -e "${INFO} 你现在可以随时输入 ${C_BOLD_YELLOW}oplist${C_RESET} 启动管理菜单！"
             sleep 3
-       # fi
-   # fi
 }
 
 init_cache_dir() {
