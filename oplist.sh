@@ -19,16 +19,17 @@ SUCCESS="${C_BOLD_GREEN}[OK]${C_RESET}"
 WARN="${C_BOLD_YELLOW}[WARN]${C_RESET}"
 
 init_paths() {
-   # REAL_PATH=$(readlink -f "$0")
-   # SCRIPT_NAME=$(basename "$REAL_PATH")
-   # SCRIPT_DIR=$(dirname "$REAL_PATH")
+    REAL_PATH=$(readlink -f "$0")
+    SCRIPT_NAME=$(basename "$REAL_PATH")
+    SCRIPT_DIR=$(dirname "$REAL_PATH")
     FILE_NAME="openlist-android-arm64.tar.gz"
-    DATA_DIR="$HOME/data"
+    DEST_DIR="$HOME/Openlist"
+    DATA_DIR="$DEST_DIR/data"
     OPENLIST_BIN="$PREFIX/bin/openlist"
     OPENLIST_LOGDIR="$DATA_DIR/log"
     OPENLIST_LOG="$OPENLIST_LOGDIR/openlist.log"
     OPENLIST_CONF="$DATA_DIR/config.json"
-    ARIA2_DIR="$HOME/aria2"
+    ARIA2_DIR="$SCRIPT_DIR/aria2"
     ARIA2_LOG="$ARIA2_DIR/aria2.log"
     ARIA2_CONF="$ARIA2_DIR/aria2.conf"
     ARIA2_CMD="aria2c"
@@ -41,21 +42,22 @@ init_paths() {
 }
 
 ensure_oplist_shortcut() {
-   # if ! echo "$PATH" | grep -q "$PREFIX/bin"; then
-       # export PATH="$PATH:$PREFIX/bin"
-       # if ! grep -q "$PREFIX/bin" ~/.bashrc 2>/dev/null; then
+    if ! echo "$PATH" | grep -q "$PREFIX/bin"; then
+        export PATH="$PATH:$PREFIX/bin"
+        if ! grep -q "$PREFIX/bin" ~/.bashrc 2>/dev/null; then
             echo "export PATH=\$PATH:$PREFIX/bin" >> ~/.bashrc
-       # fi
+        fi
         echo -e "${INFO} 已将 ${C_BOLD_YELLOW}$PREFIX/bin${C_RESET} 添加到 PATH。请重启终端确保永久生效。"
-   # fi
-   # if [ ! -f "$OPLIST_PATH" ] || [ "$REAL_PATH" != "$(readlink -f "$OPLIST_PATH")" ]; then
-       # if [ "$REAL_PATH" != "$OPLIST_PATH" ]; then
-           # cp "$REAL_PATH" "$OPLIST_PATH"
-            cp "$HOME/oplist.sh" "$OPLIST_PATH"
+    fi
+    if [ ! -f "$OPLIST_PATH" ] || [ "$REAL_PATH" != "$(readlink -f "$OPLIST_PATH")" ]; then
+        if [ "$REAL_PATH" != "$OPLIST_PATH" ]; then
+            cp "$REAL_PATH" "$OPLIST_PATH"
             chmod +x "$OPLIST_PATH"
             echo -e "${SUCCESS} 已将脚本安装为全局命令：${C_BOLD_YELLOW}oplist${C_RESET}"
             echo -e "${INFO} 你现在可以随时输入 ${C_BOLD_YELLOW}oplist${C_RESET} 启动管理菜单！"
             sleep 3
+        fi
+    fi
 }
 
 init_cache_dir() {
@@ -218,7 +220,7 @@ install_openlist() {
     if [ ! -f "openlist" ]; then
         echo -e "${ERROR} 未找到 openlist 可执行文件。"; cd - >/dev/null; return 1
     fi
-    mkdir -p "$DATA_DIR"
+    mkdir -p "$DEST_DIR"
     mv -f openlist "$OPENLIST_BIN"
     chmod +x "$OPENLIST_BIN"
     rm -f "$FILE_NAME"
@@ -229,8 +231,8 @@ install_openlist() {
 
 update_openlist() {
     ensure_aria2
-    if [ ! -d "$DATA_DIR" ]; then
-        echo -e "${ERROR} ${C_BOLD_YELLOW}$DATA_DIR${C_RESET} 文件夹不存在，请先安装 OpenList。"
+    if [ ! -d "$DEST_DIR" ]; then
+        echo -e "${ERROR} ${C_BOLD_YELLOW}$DEST_DIR${C_RESET} 文件夹不存在，请先安装 OpenList。"
         return 1
     fi
     DOWNLOAD_URL=$(get_latest_url)
@@ -270,7 +272,7 @@ ARIA2_CMD="$ARIA2_CMD"
 ARIA2_CONF="$ARIA2_CONF"
 \$ARIA2_CMD --conf-path="\$ARIA2_CONF" > "\$ARIA2_LOG" 2>&1 &
 OPENLIST_LOG="$OPENLIST_LOG"
-cd "\$HOME" || exit 1
+cd "$DATA_DIR/.." || exit 1
 "$OPENLIST_BIN" server > "\$OPENLIST_LOG" 2>&1 &
 EOF
     chmod +x "$boot_file"
@@ -287,8 +289,8 @@ disable_autostart_both() {
 
 start_all() {
     ensure_aria2
-    if [ ! -d "$DATA_DIR" ]; then
-        echo -e "${ERROR} ${C_BOLD_YELLOW}$DATA_DIR${C_RESET} 文件夹不存在，请先安装 OpenList。"
+    if [ ! -d "$DEST_DIR" ]; then
+        echo -e "${ERROR} ${C_BOLD_YELLOW}$DEST_DIR${C_RESET} 文件夹不存在，请先安装 OpenList。"
         return 1
     fi
     check_aria2_files
@@ -325,7 +327,7 @@ start_all() {
         fi
         divider
         echo -e "${INFO} 启动 OpenList server..."
-        cd "$HOME" || { echo -e "${ERROR} 进入 ${C_BOLD_YELLOW}$HOME${C_RESET} 失败。"; return 1; }
+        cd "$DATA_DIR/.." || { echo -e "${ERROR} 进入 ${C_BOLD_YELLOW}$DATA_DIR/..${C_RESET} 失败。"; return 1; }
         "$OPENLIST_BIN" server > "$OPENLIST_LOG" 2>&1 &
         OPENLIST_PID=$!
         cd "$SCRIPT_DIR"
@@ -553,7 +555,7 @@ reset_openlist_password() {
         elif [ -z "$pwd1" ]; then
             echo -e "${ERROR} 密码不能为空，请重新输入。"
         else
-            cd $HOME && openlist admin set "$pwd1"
+            "$OPENLIST_BIN" admin set "$pwd1"
             echo -e "${SUCCESS} 密码已设置完成。"
             break
         fi
@@ -571,7 +573,7 @@ uninstall_all() {
         if command -v pkg >/dev/null 2>&1; then
             pkg uninstall -y aria2
         fi
-        rm -rf "$DATA_DIR" "$ARIA2_DIR" "$GITHUB_TOKEN_FILE" "$ARIA2_SECRET_FILE"
+        rm -rf "$DEST_DIR" "$ARIA2_DIR" "$GITHUB_TOKEN_FILE" "$ARIA2_SECRET_FILE"
         rm -f "$HOME/oplist.sh" "$OPLIST_PATH" "$OPENLIST_BIN"
         echo -e "${SUCCESS} 已完成一键卸载。"
     else
