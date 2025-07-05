@@ -109,10 +109,9 @@ upload_to_ftp() {
 }
 
 list_ftp_backups() {
-    echo -e "${INFO} 正在获取 FTP 服务器上的备份列表..."
+    # 只输出文件名，不加任何提示信息
     local ftp_list=$(curl -s --list-only "ftp://$FTP_USER:$FTP_PASS@$FTP_HOST$FTP_PATH" | grep "backup_.*\.tar\.gz")
     if [ -z "$ftp_list" ]; then
-        echo -e "${WARN} FTP 服务器上没有找到备份文件。"
         return 1
     fi
     echo "$ftp_list"
@@ -695,7 +694,8 @@ backup_restore_menu() {
                 echo -e "${WARN} 本地没有可用备份，尝试从 FTP 服务器获取..."
                 get_ftp_info
                 ftp_backups=$(list_ftp_backups)
-                if [ $? -ne 0 ]; then
+                if [ $? -ne 0 ] || [ -z "$ftp_backups" ]; then
+                    echo -e "${WARN} FTP 服务器上没有可用备份。"
                     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
                     read
                     return
