@@ -39,6 +39,8 @@ init_paths() {
     CACHE_DIR="$DATA_DIR/.cache"
     VERSION_CACHE="$CACHE_DIR/version.cache"
     VERSION_CHECKING="$CACHE_DIR/version.checking"
+    FTP_INFO_FILE="$HOME/.ftp_info"
+    BACKUP_DIR="$DEST_DIR/backup"
 }
 
 ensure_oplist_shortcut() {
@@ -62,6 +64,73 @@ ensure_oplist_shortcut() {
 
 init_cache_dir() {
     [ -d "$CACHE_DIR" ] || mkdir -p "$CACHE_DIR"
+    [ -d "$BACKUP_DIR" ] || mkdir -p "$BACKUP_DIR"
+}
+
+get_ftp_info() {
+    if [ -f "$FTP_INFO_FILE" ]; then
+        source "$FTP_INFO_FILE"
+    else
+        echo -e "${C_BOLD_CYAN}请输入 FTP 服务器地址 (如 ftp.example.com):${C_RESET}"
+        read FTP_HOST
+        echo -e "${C_BOLD_CYAN}请输入 FTP 用户名:${C_RESET}"
+        read FTP_USER
+        echo -e "${C_BOLD_CYAN}请输入 FTP 密码:${C_RESET}"
+        read -s FTP_PASS
+        echo
+        echo -e "${C_BOLD_CYAN}请输入 FTP 备份路径 (如 /backups/, 以 / 开头和结尾):${C_RESET}"
+        read FTP_PATH
+        echo "FTP_HOST='$FTP_HOST'" > "$FTP_INFO_FILE"
+        echo "FTP_USER='$FTP_USER'" >> "$FTP_INFO_FILE"
+        echo "FTP_PASS='$FTP_PASS'" >> "$FTP_INFO_FILE"
+        echo "FTP_PATH='$FTP_PATH'" >> "$FTP_INFO_FILE"
+        chmod 600 "$FTP_INFO_FILE"
+        echo -e "${SUCCESS} FTP 配置已保存到 ${C_BOLD_YELLOW}$FTP_INFO_FILE${C_RESET}"
+    fi
+    if [ -z "$FTP_HOST" ] || [ -z "$FTP_USER" ] || [ -z "$FTP_PASS" ] || [ -z "$FTP_PATH" ]; then
+        echo -e "${ERROR} FTP 配置不完整，请检查 ${C_BOLD_YELLOW}$FTP_INFO_FILE${C_RESET} 或重新输入。"
+        rm -f "$FTP_INFO_FILE"
+        get_ftp_info
+    fi
+}
+
+upload_to_ftp() {
+    local backup_file="$1"
+    local filename=$(basename "$backup_file")
+    echo -e "${INFO} 正在上传备份 ${C_BOLD_YELLOW}$filename${C_RESET} 到 FTP 服务器 ${C_BOLD_YELLOW}ftp://$FTP_HOST$FTP_PATH${C_RESET}..."
+    curl -s -T "$backup_file" "ftp://$FTP_USER:$FTP_PASS@$FTP_HOST${FTP_PATH}${filename}"
+    if [ $? -eq 0 ]; then
+        echo -e "${SUCCESS} 备份 ${C_BOLD_YELLOW}$filename${C_RESET} 已上传到 FTP 服务器。"
+    else
+        echo -e "${ERROR} 上传备份 ${C_BOLD_YELLOW}$filename${C_RESET} 失败，请检查 FTP 配置或网络。"
+        return 1
+    fi
+    return 0
+}
+
+list_ftp_backups() {
+    echo -e "${INFO} 正在获取 FTP 服务器上的备份列表..."
+    local ftp_list=$(curl -s --list-only "ftp://$FTP_USER:$FTP_PASS@$FTP_HOST$FTP_PATH" | grep "backup_.*\.tar\.gz")
+    if [ -z "$ftp_list" ]; then
+        echo -e "${WARN} FTP 服务器上没有找到备份文件。"
+        return 1
+    fi
+    echo "$ftp_list"
+    return 0
+}
+
+download_ftp_backup() {
+    local filename="$1"
+    local output="$BACKUP_DIR/$filename"
+    echo -e "${INFO} 正在从 FTP 服务器下载 ${C_BOLD_YELLOW}$filename${C_RESET}..."
+    curl -s -o "$output" "ftp://$FTP_USER:$FTP_PASS@$FTP_HOST${FTP_PATH}${filename}"
+    if [ $? -eq 0 ]; then
+        echo -e "${SUCCESS} 已下载备份 ${C_BOLD_YELLOW}$filename${C_RESET} 到 ${C_BOLD_YELLOW}$output${C_RESET}"
+        return 0
+    else
+        echo -e "${ERROR} 下载备份 ${C_BOLD_YELLOW}$filename${C_RESET} 失败。"
+        return 1
+    fi
 }
 
 get_local_version() {
@@ -127,6 +196,10 @@ check_aria2_files() {
     echo -e "${INFO} 检查 aria2 相关文件..."
     if ! command -v wget >/dev/null 2>&1; then
         echo -e "${ERROR} 未检测到 wget，请先安装 wget。"
+        return 1
+    fi
+    if ! command -v curl >/dev/null 2>&1; then
+        echo -e "${ERROR} 未检测到 curl，请先安装 curl。"
         return 1
     fi
     local files=(
@@ -577,7 +650,7 @@ uninstall_all() {
         if command -v pkg >/dev/null 2>&1; then
             pkg uninstall -y aria2
         fi
-        rm -rf "$DEST_DIR" "$ARIA2_DIR" "$GITHUB_TOKEN_FILE" "$ARIA2_SECRET_FILE"
+        rm -rf "$DEST_DIR" "$ARIA2_DIR" "$GITHUB_TOKEN_FILE" "$ARIA2_SECRET_FILE" "$FTP_INFO_FILE"
         rm -f "$HOME/oplist.sh" "$OPLIST_PATH" "$OPENLIST_BIN"
         echo -e "${SUCCESS} 已完成一键卸载。"
     else
@@ -588,8 +661,6 @@ uninstall_all() {
 }
 
 backup_restore_menu() {
-    local backup_dir="$DEST_DIR/backup"
-    mkdir -p "$backup_dir"
     echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
     echo -e "${C_BOLD_BLUE}│    备份/还原功能         │${C_RESET}"
     echo -e "${C_BOLD_BLUE}└──────────────────────────┘${C_RESET}"
@@ -602,7 +673,7 @@ backup_restore_menu() {
         1)
             local timestamp
             timestamp=$(date "+%Y%m%d_%H%M%S")
-            local backup_file="$backup_dir/backup_${timestamp}.tar.gz"
+            local backup_file="$BACKUP_DIR/backup_${timestamp}.tar.gz"
             if [ ! -d "$DATA_DIR" ]; then
                 echo -e "${ERROR} data 不存在，无法备份。"
             else
@@ -612,19 +683,60 @@ backup_restore_menu() {
                     tar -czf "$backup_file" --files-from /dev/null
                 fi
                 echo -e "${SUCCESS} 已备份到：${C_BOLD_YELLOW}$backup_file${C_RESET}"
+                get_ftp_info
+                upload_to_ftp "$backup_file"
             fi
             echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
             read
             ;;
         2)
-            local backups=($(ls -1 "$backup_dir"/backup_*.tar.gz 2>/dev/null))
+            local backups=($(ls -1 "$BACKUP_DIR"/backup_*.tar.gz 2>/dev/null))
             if [ ${#backups[@]} -eq 0 ]; then
-                echo -e "${WARN} 没有可用备份。"
+                echo -e "${WARN} 本地没有可用备份，尝试从 FTP 服务器获取..."
+                get_ftp_info
+                ftp_backups=$(list_ftp_backups)
+                if [ $? -ne 0 ]; then
+                    echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
+                    read
+                    return
+                fi
+                mapfile -t ftp_backup_array <<< "$ftp_backups"
+                if [ ${#ftp_backup_array[@]} -eq 0 ]; then
+                    echo -e "${WARN} FTP 服务器上没有可用备份。"
+                    echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
+                    read
+                    return
+                fi
+                echo -e "${INFO} 可用 FTP 备份："
+                local i=1
+                for f in "${ftp_backup_array[@]}"; do
+                    echo -e "  ${C_BOLD_YELLOW}$i.${C_RESET} $f"
+                    ((i++))
+                done
+                echo -ne "${C_BOLD_CYAN}输入要下载的备份编号 (1-${#ftp_backup_array[@]})，或0返回:${C_RESET} "
+                read sel
+                if [[ ! "$sel" =~ ^[0-9]+$ ]] || [ "$sel" -lt 1 ] || [ "$sel" -gt "${#ftp_backup_array[@]}" ]; then
+                    echo -e "${INFO} 已取消还原。"
+                    echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
+                    read
+                    return
+                fi
+                local selected_backup="${ftp_backup_array[$((sel-1))]}"
+                download_ftp_backup "$selected_backup"
+                if [ $? -ne 0 ]; then
+                    echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
+                    read
+                    return
+                fi
+                backups=($(ls -1 "$BACKUP_DIR"/backup_*.tar.gz 2>/dev/null))
+            fi
+            if [ ${#backups[@]} -eq 0 ]; then
+                echo -e "${WARN} 仍然没有可用备份。"
                 echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
                 read
                 return
             fi
-            echo -e "${INFO} 可用备份："
+            echo -e "${INFO} 可用本地备份："
             local i=1
             for f in "${backups[@]}"; do
                 echo -e "  ${C_BOLD_YELLOW}$i.${C_RESET} $(basename "$f")"
@@ -639,7 +751,7 @@ backup_restore_menu() {
                 return
             fi
             local restore_file="${backups[$((sel-1))]}"
-            echo -e "${WARN} 这将覆盖当前 data 和 aria2 目录，是否继续？(y/n):${C_RESET}"
+            echo -e "${WARN} 这将覆盖当前 data 目录，是否继续？(y/n):${C_RESET}"
             read confirm
             if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
                 rm -rf "$DATA_DIR"
