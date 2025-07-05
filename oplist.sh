@@ -71,7 +71,7 @@ get_ftp_info() {
     if [ -f "$FTP_INFO_FILE" ]; then
         source "$FTP_INFO_FILE"
     else
-        echo -e "${C_BOLD_CYAN}请输入 FTP 服务器地址 (如 ftp.example.com):${C_RESET}"
+        echo -e "${C_BOLD_CYAN}请输入 FTP 服务器地址 (如 10.10.25.34:21):${C_RESET}"
         read FTP_HOST
         echo -e "${C_BOLD_CYAN}请输入 FTP 用户名:${C_RESET}"
         read FTP_USER
@@ -109,7 +109,6 @@ upload_to_ftp() {
 }
 
 list_ftp_backups() {
-    # 只输出文件名，不加任何提示信息
     local ftp_list=$(curl -s --list-only "ftp://$FTP_USER:$FTP_PASS@$FTP_HOST$FTP_PATH" | grep "backup_.*\.tar\.gz")
     if [ -z "$ftp_list" ]; then
         return 1
@@ -666,7 +665,7 @@ backup_restore_menu() {
     echo -e "${C_BOLD_GREEN}1. 备份 Openlist 配置${C_RESET}"
     echo -e "${C_BOLD_YELLOW}2. 还原 Openlist 配置${C_RESET}"
     echo -e "${C_BOLD_GRAY}0. 返回${C_RESET}"
-    echo -ne "${C_BOLD_CYAN}请选择操作 (1-2, 0返回):${C_RESET} "
+    echo -ne "${C_BOLD_CYAN}请选择操作 (0-2):${C_RESET} "
     read br_choice
     case $br_choice in
         1)
