@@ -18,7 +18,6 @@ ERROR="${C_BOLD_RED}[ERROR]${C_RESET}"
 SUCCESS="${C_BOLD_GREEN}[OK]${C_RESET}"
 WARN="${C_BOLD_YELLOW}[WARN]${C_RESET}"
 
-# --- 新增统一环境变量读取 ---
 if [ -f "$HOME/.env" ]; then
     source "$HOME/.env"
 else
@@ -45,7 +44,7 @@ init_paths() {
     CACHE_DIR="$DATA_DIR/.cache"
     VERSION_CACHE="$CACHE_DIR/version.cache"
     VERSION_CHECKING="$CACHE_DIR/version.checking"
-    BACKUP_DIR="/sdcard/Download"   # 备份目录强制到/sdcard/Download
+    BACKUP_DIR="/sdcard/Download"   
 }
 
 ensure_oplist_shortcut() {
@@ -72,7 +71,6 @@ init_cache_dir() {
     [ -d "$BACKUP_DIR" ] || mkdir -p "$BACKUP_DIR"
 }
 
-# ====================== 统一变量检测函数 ========================
 get_github_token() {
     if [ -z "$GITHUB_TOKEN" ]; then
         echo -e "${ERROR} .env 中未设置 GITHUB_TOKEN"
@@ -91,7 +89,6 @@ get_ftp_info() {
         exit 1
     fi
 }
-# ================================================================
 
 upload_to_ftp() {
     get_ftp_info
@@ -222,7 +219,7 @@ create_aria2_conf() {
 }
 
 divider() {
-    echo -e "${C_BOLD_BLUE}=====================================${C_RESET}"
+    echo -e "${C_BOLD_BLUE}======================================${C_RESET}"
 }
 
 ensure_aria2() {
