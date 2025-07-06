@@ -18,6 +18,14 @@ ERROR="${C_BOLD_RED}[ERROR]${C_RESET}"
 SUCCESS="${C_BOLD_GREEN}[OK]${C_RESET}"
 WARN="${C_BOLD_YELLOW}[WARN]${C_RESET}"
 
+# --- 新增统一环境变量读取 ---
+if [ -f "$HOME/.env" ]; then
+    source "$HOME/.env"
+else
+    echo -e "${ERROR} 未找到 $HOME/.env 文件，请先配置。"
+    exit 1
+fi
+
 init_paths() {
     REAL_PATH=$(readlink -f "$0")
     SCRIPT_NAME=$(basename "$REAL_PATH")
@@ -33,14 +41,11 @@ init_paths() {
     ARIA2_LOG="$ARIA2_DIR/aria2.log"
     ARIA2_CONF="$ARIA2_DIR/aria2.conf"
     ARIA2_CMD="aria2c"
-    GITHUB_TOKEN_FILE="$HOME/.github_token"
-    ARIA2_SECRET_FILE="$HOME/.aria2_secret"
     OPLIST_PATH="$PREFIX/bin/oplist"
     CACHE_DIR="$DATA_DIR/.cache"
     VERSION_CACHE="$CACHE_DIR/version.cache"
     VERSION_CHECKING="$CACHE_DIR/version.checking"
-    FTP_INFO_FILE="$HOME/.ftp_info"
-    BACKUP_DIR="$DEST_DIR/backup"
+    BACKUP_DIR="/sdcard/Download"   # 备份目录强制到/sdcard/Download
 }
 
 ensure_oplist_shortcut() {
@@ -67,34 +72,29 @@ init_cache_dir() {
     [ -d "$BACKUP_DIR" ] || mkdir -p "$BACKUP_DIR"
 }
 
-get_ftp_info() {
-    if [ -f "$FTP_INFO_FILE" ]; then
-        source "$FTP_INFO_FILE"
-    else
-        echo -e "${C_BOLD_CYAN}请输入 FTP 服务器地址 (如 10.10.25.34:21):${C_RESET}"
-        read FTP_HOST
-        echo -e "${C_BOLD_CYAN}请输入 FTP 用户名:${C_RESET}"
-        read FTP_USER
-        echo -e "${C_BOLD_CYAN}请输入 FTP 密码:${C_RESET}"
-        read -s FTP_PASS
-        echo
-        echo -e "${C_BOLD_CYAN}请输入 FTP 备份路径 (如 /backups/, 以 / 开头和结尾):${C_RESET}"
-        read FTP_PATH
-        echo "FTP_HOST='$FTP_HOST'" > "$FTP_INFO_FILE"
-        echo "FTP_USER='$FTP_USER'" >> "$FTP_INFO_FILE"
-        echo "FTP_PASS='$FTP_PASS'" >> "$FTP_INFO_FILE"
-        echo "FTP_PATH='$FTP_PATH'" >> "$FTP_INFO_FILE"
-        chmod 600 "$FTP_INFO_FILE"
-        echo -e "${SUCCESS} FTP 配置已保存到 ${C_BOLD_YELLOW}$FTP_INFO_FILE${C_RESET}"
-    fi
-    if [ -z "$FTP_HOST" ] || [ -z "$FTP_USER" ] || [ -z "$FTP_PASS" ] || [ -z "$FTP_PATH" ]; then
-        echo -e "${ERROR} FTP 配置不完整，请检查 ${C_BOLD_YELLOW}$FTP_INFO_FILE${C_RESET} 或重新输入。"
-        rm -f "$FTP_INFO_FILE"
-        get_ftp_info
+# ====================== 统一变量检测函数 ========================
+get_github_token() {
+    if [ -z "$GITHUB_TOKEN" ]; then
+        echo -e "${ERROR} .env 中未设置 GITHUB_TOKEN"
+        exit 1
     fi
 }
+get_aria2_secret() {
+    if [ -z "$ARIA2_SECRET" ]; then
+        echo -e "${ERROR} .env 中未设置 ARIA2_SECRET"
+        exit 1
+    fi
+}
+get_ftp_info() {
+    if [ -z "$FTP_HOST" ] || [ -z "$FTP_USER" ] || [ -z "$FTP_PASS" ] || [ -z "$FTP_PATH" ]; then
+        echo -e "${ERROR} .env 中 FTP 配置不完整"
+        exit 1
+    fi
+}
+# ================================================================
 
 upload_to_ftp() {
+    get_ftp_info
     local backup_file="$1"
     local filename=$(basename "$backup_file")
     echo -e "${INFO} 正在上传备份 ${C_BOLD_YELLOW}$filename${C_RESET} 到 FTP 服务器 ${C_BOLD_YELLOW}ftp://$FTP_HOST$FTP_PATH${C_RESET}..."
@@ -109,6 +109,7 @@ upload_to_ftp() {
 }
 
 list_ftp_backups() {
+    get_ftp_info
     local ftp_list=$(curl -s --list-only "ftp://$FTP_USER:$FTP_PASS@$FTP_HOST$FTP_PATH" | grep "backup_.*\.tar\.gz")
     if [ -z "$ftp_list" ]; then
         return 1
@@ -118,6 +119,7 @@ list_ftp_backups() {
 }
 
 download_ftp_backup() {
+    get_ftp_info
     local filename="$1"
     local output="$BACKUP_DIR/$filename"
     echo -e "${INFO} 正在从 FTP 服务器下载 ${C_BOLD_YELLOW}$filename${C_RESET}..."
@@ -136,7 +138,6 @@ get_local_version() {
         "$OPENLIST_BIN" version 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n1
     fi
 }
-
 get_latest_version() {
     if [ -f "$VERSION_CACHE" ] && [ "$(find "$VERSION_CACHE" -mmin -20)" ]; then
         head -n1 "$VERSION_CACHE"
@@ -156,28 +157,6 @@ check_version_bg() {
             rm -f "$VERSION_CHECKING"
         ) &
     fi
-}
-
-get_github_token() {
-    if [ ! -f "$GITHUB_TOKEN_FILE" ]; then
-        echo -e "${INFO} 检测到你未设置 GitHub Token，请按项目readme提示获取Token。"
-        echo -ne "${C_BOLD_CYAN}请输入你的 GitHub Token:${C_RESET}"
-        read GITHUB_TOKEN
-        echo "$GITHUB_TOKEN" > "$GITHUB_TOKEN_FILE"
-        chmod 600 "$GITHUB_TOKEN_FILE"
-    fi
-    GITHUB_TOKEN=$(cat "$GITHUB_TOKEN_FILE")
-}
-
-get_aria2_secret() {
-    if [ ! -f "$ARIA2_SECRET_FILE" ]; then
-        echo -e "${INFO} 检测到你未设置 aria2 RPC 密钥。"
-        echo -e "${C_BOLD_CYAN}请输入aria2 RPC密钥:${C_RESET}"
-        read ARIA2_SECRET
-        echo "$ARIA2_SECRET" > "$ARIA2_SECRET_FILE"
-        chmod 600 "$ARIA2_SECRET_FILE"
-    fi
-    ARIA2_SECRET=$(cat "$ARIA2_SECRET_FILE")
 }
 
 check_aria2_files() {
@@ -263,7 +242,6 @@ get_latest_url() {
     curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/OpenListTeam/OpenList/releases/latest" | \
         sed -n 's/.*"browser_download_url": *"\([^"]*android-arm64\.tar\.gz\)".*/\1/p' | head -n1
 }
-
 download_with_progress() {
     url="$1"
     output="$2"
@@ -274,12 +252,10 @@ download_with_progress() {
         curl -L --progress-bar -o "$output" "$url"
     fi
 }
-
 extract_file() {
     file="$1"
     tar -zxf "$file"
 }
-
 install_openlist() {
     ensure_aria2
     DOWNLOAD_URL=$(get_latest_url)
@@ -303,7 +279,6 @@ install_openlist() {
     cd - >/dev/null
     return 0
 }
-
 update_openlist() {
     ensure_aria2
     if [ ! -d "$DEST_DIR" ]; then
@@ -328,15 +303,12 @@ update_openlist() {
     cd - >/dev/null
     return 0
 }
-
 check_openlist_process() {
     pgrep -f "$OPENLIST_BIN server" >/dev/null 2>&1
 }
-
 check_aria2_process() {
     pgrep -f "$ARIA2_CMD --conf-path=$ARIA2_CONF" >/dev/null 2>&1
 }
-
 enable_autostart_both() {
     mkdir -p "$HOME/.termux/boot"
     local boot_file="$HOME/.termux/boot/openlist_and_aria2_autostart.sh"
@@ -353,7 +325,6 @@ EOF
     chmod +x "$boot_file"
     echo -e "${SUCCESS} OpenList 和 aria2 已成功设置开机自启"
 }
-
 disable_autostart_both() {
     local boot_file="$HOME/.termux/boot/openlist_and_aria2_autostart.sh"
     if [ -f "$boot_file" ]; then
@@ -361,7 +332,6 @@ disable_autostart_both() {
         echo -e "${INFO} 已禁用 OpenList 和 aria2 开机自启"
     fi
 }
-
 start_all() {
     ensure_aria2
     if [ ! -d "$DEST_DIR" ]; then
@@ -444,7 +414,6 @@ start_all() {
     divider
     return 0
 }
-
 stop_all() {
     if check_openlist_process; then
         PIDS=$(pgrep -f "$OPENLIST_BIN server")
@@ -476,7 +445,6 @@ stop_all() {
     fi
     return 0
 }
-
 aria2_status_line() {
     if check_aria2_process; then
         PIDS=$(pgrep -f "$ARIA2_CMD --conf-path=$ARIA2_CONF")
@@ -485,7 +453,6 @@ aria2_status_line() {
         echo -e "${INFO} aria2 状态：${C_BOLD_RED}未运行${C_RESET}"
     fi
 }
-
 openlist_status_line() {
     if check_openlist_process; then
         PIDS=$(pgrep -f "$OPENLIST_BIN server")
@@ -494,7 +461,6 @@ openlist_status_line() {
         echo -e "${INFO} OpenList 状态：${C_BOLD_RED}未运行${C_RESET}"
     fi
 }
-
 edit_openlist_config() {
     echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
     echo -e "${C_BOLD_BLUE}│ 编辑 OpenList 配置文件   │${C_RESET}"
@@ -509,7 +475,6 @@ edit_openlist_config() {
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
     read
 }
-
 edit_aria2_config() {
     echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
     echo -e "${C_BOLD_BLUE}│ 编辑 aria2 配置文件      │${C_RESET}"
@@ -524,7 +489,6 @@ edit_aria2_config() {
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
     read
 }
-
 view_openlist_log() {
     echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
     echo -e "${C_BOLD_BLUE}│ 查看 OpenList 日志       │${C_RESET}"
@@ -538,7 +502,6 @@ view_openlist_log() {
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
     read
 }
-
 view_aria2_log() {
     echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
     echo -e "${C_BOLD_BLUE}│ 查看 aria2 日志          │${C_RESET}"
@@ -552,7 +515,6 @@ view_aria2_log() {
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
     read
 }
-
 update_bt_tracker() {
     if [ ! -f "$ARIA2_CONF" ]; then
         echo -e "${ERROR} 未找到 aria2 配置文件：${C_BOLD_YELLOW}$ARIA2_CONF${C_RESET}"
@@ -574,7 +536,6 @@ update_bt_tracker() {
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
     read
 }
-
 update_script() {
     if [ "$SCRIPT_NAME" = "oplist" ]; then
         ORIGINAL_SCRIPT=$(find "$HOME" -name "oplist.sh" -type f 2>/dev/null | head -n 1)
@@ -613,7 +574,6 @@ update_script() {
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
     read
 }
-
 reset_openlist_password() {
     echo -e "${C_BOLD_BLUE}┌─────────────────────────────┐${C_RESET}"
     echo -e "${C_BOLD_BLUE}│ OpenList 密码重置           │${C_RESET}"
@@ -638,7 +598,6 @@ reset_openlist_password() {
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
     read
 }
-
 uninstall_all() {
     echo -e "${C_BOLD_RED}!!! 卸载将删除所有 OpenList 及 aria2 数据和配置，是否继续？(y/n):${C_RESET}"
     read confirm
@@ -648,7 +607,7 @@ uninstall_all() {
         if command -v pkg >/dev/null 2>&1; then
             pkg uninstall -y aria2
         fi
-        rm -rf "$DEST_DIR" "$ARIA2_DIR" "$GITHUB_TOKEN_FILE" "$ARIA2_SECRET_FILE" "$FTP_INFO_FILE"
+        rm -rf "$DEST_DIR" "$ARIA2_DIR"
         rm -f "$HOME/oplist.sh" "$OPLIST_PATH" "$OPENLIST_BIN"
         echo -e "${SUCCESS} 已完成一键卸载。"
     else
@@ -657,7 +616,6 @@ uninstall_all() {
     echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
     read
 }
-
 backup_restore_menu() {
     echo -e "${C_BOLD_BLUE}┌──────────────────────────┐${C_RESET}"
     echo -e "${C_BOLD_BLUE}│    备份/还原功能         │${C_RESET}"
@@ -681,7 +639,6 @@ backup_restore_menu() {
                     tar -czf "$backup_file" --files-from /dev/null
                 fi
                 echo -e "${SUCCESS} 已备份到：${C_BOLD_YELLOW}$backup_file${C_RESET}"
-                get_ftp_info
                 upload_to_ftp "$backup_file"
             fi
             echo -e "${C_BOLD_MAGENTA}按回车键返回菜单...${C_RESET}"
@@ -691,7 +648,6 @@ backup_restore_menu() {
             local backups=($(ls -1 "$BACKUP_DIR"/backup_*.tar.gz 2>/dev/null))
             if [ ${#backups[@]} -eq 0 ]; then
                 echo -e "${WARN} 本地没有可用备份，尝试从 FTP 服务器获取..."
-                get_ftp_info
                 ftp_backups=$(list_ftp_backups)
                 if [ $? -ne 0 ] || [ -z "$ftp_backups" ]; then
                     echo -e "${WARN} FTP 服务器上没有可用备份。"
@@ -766,7 +722,6 @@ backup_restore_menu() {
             ;;
     esac
 }
-
 show_more_menu() {
     while true; do
         clear
@@ -794,7 +749,6 @@ show_more_menu() {
         esac
     done
 }
-
 show_menu() {
     clear
     echo -e "${C_BOLD_BLUE}=====================================${C_RESET}"
