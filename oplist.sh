@@ -292,7 +292,7 @@ EOF
         sleep 2
     fi
     echo -e "${INFO} 正在启动 Cloudflare Tunnel..."
-    cloudflared tunnel --config "$CF_CONFIG" --no-autoupdate run "$TUNNEL_NAME" > "$CF_LOG" 2>&1 &
+    cloudflared tunnel --config "$CF_CONFIG" --no-autoupdate --protocol http2 run "$TUNNEL_NAME" > "$CF_LOG" 2>&1 &
     sleep 2
     if pgrep -f "cloudflared.*$TUNNEL_NAME" >/dev/null; then
         echo -e "${SUCCESS} 隧道已启动，日志输出至: $CF_LOG"
