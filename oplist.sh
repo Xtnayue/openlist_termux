@@ -284,7 +284,6 @@ credentials-file: $CRED_FILE
 EOF
         echo -e "${SUCCESS} 配置文件已生成: $CF_CONFIG"
     fi
-    # Route the tunnel to the hostname
     echo -e "${INFO} 配置 DNS 路由: $DOMAIN"
     cloudflared tunnel route dns "$TUNNEL_NAME" "$DOMAIN" || { echo -e "${ERROR} DNS 路由配置失败，请检查 Cloudflare 账户权限或域名配置"; return 1; }
     if pgrep -f "cloudflared.*$TUNNEL_NAME" >/dev/null; then
@@ -293,7 +292,7 @@ EOF
         sleep 2
     fi
     echo -e "${INFO} 正在启动 Cloudflare Tunnel..."
-    cloudflared tunnel --config "$CF_CONFIG" --no-autoupdate --protocol http2 run "$TUNNEL_NAME" > "$CF_LOG" 2>&1 &
+    cloudflared tunnel --config "$CF_CONFIG" --no-autoupdate run "$TUNNEL_NAME" > "$CF_LOG" 2>&1 &
     sleep 2
     if pgrep -f "cloudflared.*$TUNNEL_NAME" >/dev/null; then
         echo -e "${SUCCESS} 隧道已启动，日志输出至: $CF_LOG"
@@ -755,7 +754,7 @@ uninstall_all() {
         pkill -f "$ARIA2_CMD"
         pkill -f "cloudflared.*$TUNNEL_NAME"
         if command -v pkg >/dev/null 2>&1; then
-            pkg uninstall -y aria2 cloudflared
+            pkg uninstall -y aria2 cloudflared && apt autoremove -y
         fi
         rm -rf "$DEST_DIR" "$ARIA2_DIR" "$CONFIG_DIR"
         rm -f "$HOME/oplist.sh" "$OPLIST_PATH" "$OPENLIST_BIN"
