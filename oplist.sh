@@ -293,7 +293,7 @@ EOF
         sleep 2
     fi
     echo -e "${INFO} 正在启动 Cloudflare Tunnel..."
-    cloudflared tunnel --config "$CF_CONFIG" --no-autoupdate run "$TUNNEL_NAME" > "$CF_LOG" 2>&1 &
+    cloudflared tunnel --config "$CF_CONFIG" --no-autoupdate --protocol http2 run "$TUNNEL_NAME" > "$CF_LOG" 2>&1 &
     sleep 2
     if pgrep -f "cloudflared.*$TUNNEL_NAME" >/dev/null; then
         echo -e "${SUCCESS} 隧道已启动，日志输出至: $CF_LOG"
@@ -330,9 +330,9 @@ stop_cloudflare_tunnel() {
 tunnel_status_line() {
     if pgrep -f "cloudflared.*$TUNNEL_NAME" >/dev/null; then
         PIDS=$(pgrep -f "cloudflared.*$TUNNEL_NAME")
-        echo -e "${INFO} Cloudflare Tunnel 状态：${C_BOLD_GREEN}运行中 (PID: $PIDS)${C_RESET}"
+        echo -e "${INFO} 隧道状态：${C_BOLD_GREEN}运行中 (PID: $PIDS)${C_RESET}"
     else
-        echo -e "${INFO} Cloudflare Tunnel 状态：${C_BOLD_RED}未运行${C_RESET}"
+        echo -e "${INFO} 隧道状态：${C_BOLD_RED}未运行${C_RESET}"
     fi
 }
 
@@ -921,7 +921,7 @@ show_menu() {
     elif [ -z "$latest_ver" ]; then
         ver_status="${C_BOLD_GREEN}已安装 $local_ver${C_RESET}"
     elif [ "$local_ver" = "$latest_ver" ]; then
-        ver_status="${C_BOLD_GREEN}已是最新版本 $local_ver${C_RESET}"
+        ver_status="${C_BOLD_GREEN}已是最新版 $local_ver${C_RESET}"
     else
         ver_status="${C_BOLD_YELLOW}有新版本 $latest_ver (当前 $local_ver)${C_RESET}"
     fi
