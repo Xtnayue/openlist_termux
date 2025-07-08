@@ -20,7 +20,7 @@ WARN="${C_BOLD_YELLOW}[WARN]${C_RESET}"
 if [ -f "$HOME/.env" ]; then
     source "$HOME/.env"
 else
-    echo -e "${ERROR} 未找到 $HOME/.env 文件，请先配置。"
+    echo -e "${ERROR} 未找到 $HOME/.env 文件，请按仓库内模板配置env。"
     exit 1
 fi
 
@@ -921,9 +921,9 @@ show_menu() {
     elif [ -z "$latest_ver" ]; then
         ver_status="${C_BOLD_GREEN}已安装 $local_ver${C_RESET}"
     elif [ "$local_ver" = "$latest_ver" ]; then
-        ver_status="${C_BOLD_GREEN}已是最新版 $local_ver${C_RESET}"
+        ver_status="${C_BOLD_GREEN}已是最新 $local_ver${C_RESET}"
     else
-        ver_status="${C_BOLD_YELLOW}有新版本 $latest_ver (当前 $local_ver)${C_RESET}"
+        ver_status="${C_BOLD_YELLOW}有新版 $latest_ver (当前 $local_ver)${C_RESET}"
     fi
     openlist_status_line
     aria2_status_line
